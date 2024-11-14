@@ -1,0 +1,268 @@
+#!/bin/sh
+. "$HOME"/archix/Scripts/vars
+
+INSTALL="pacman -S --needed --noconfirm"
+
+#Pacman Config
+sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+
+if [ "$ARTIX" = true ];then
+   sed -i -z -e 's,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,' -i -z -e 's,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist\n\n#Arch Repos\n\n#\[extra-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[extra\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib\]\n#Include = /etc/pacman.d/mirrorlist-arch,' /etc/pacman.conf
+   $INSTALL artix-archlinux-support
+   sed -i -e "/\[lib32\]/,/Include/"'s/^#//' -i -e "/\[extra\]/,/Include/"'s/^#//' /etc/pacman.conf
+   pacman-key --populate
+fi
+$INSTALL base-devel
+if [ "$DOAS" = true ];then
+    pacman -R --noconfirm base-devel sudo
+    $INSTALL opendoas
+fi
+$INSTALL pacman-contrib pkgfile
+pkgfile -uz "zstd -T0 -19"
+
+#Makepkg Optimisations
+$INSTALL pigs lbzip2
+sed -i -e 's/#MAKEFLAGS.*/MAKEFLAGS="-j\$(nproc)"/' -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
+if [ "$DOAS" = true ];then
+     sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
+fi
+
+#Snapper Configs
+if [ "$SNAPPER" = true ];then
+    $INSTALL snapper
+    . "$HOME"/archix/Scripts/snapper.sh
+fi
+
+#Set Timezone
+$INSTALL chrony
+mv /etc/chrony.conf /etc/chrony.conf.bak
+wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
+ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
+hwclock --systohc
+
+#Set Language Local
+
+#####
+
+#Hostname
+printf "%s" "$HN" > /etc/hostname
+
+#User
+$INSTALL "$SHELL"
+useradd -mG wheel -s /bin/"$SHELL" "$USERNAME"
+printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
+
+#:wheel permissions (nopasswd)
+if pacman -Q opendoas;then
+    printf "permit nopass :wheel\n" > /etc/doas.conf
+    chown -c root:root /etc/doas.conf
+    chmod -c 0400 /etc/doas.conf;else
+    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
+fi
+
+#GRUB
+GRUB_DIR=/etc/default/grub
+sed -i 's/loglevel=./loglevel=0/' "$GRUB_DIR"
+if [ "$EFI" = true ];then
+    grub-install --efi-directory=/efi --bootloader-id=GRUB
+    sed -i 's/quiet/efi=disable_early_pci_dma quiet/' "$GRUB_DIR";else
+    grub-install
+fi
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# DOWNLOADS #
+#CPU Microcode
+if lscpu | grep -E "AuthenticAMD";then
+    $INSTALL amd-ucode
+    sed -i 's/quiet/amd_iommu=on quiet/' "$GRUB_DIR"
+elif lscpu | grep -E "GenuineIntel";then
+    $INSTALL intel-ucode
+    sed -i 's/quiet/intel_iommu=on quiet/' "$GRUB_DIR"
+fi
+
+#Grapics Drivers
+if lspci | grep "VGA" | grep -E "Radeon|AMD|ATI" && lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
+    $INSTALL vulkan-{radeon,intel,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver intel-media-driver
+    if [ "$STEAM" = true ];then
+        $INSTALL lib32-vulkan-{radeon,intel}
+    fi
+    printf "RUSTICL_ENABLE=radeonsi,iris\n" >> /etc/environment
+elif lspci | grep "VGA" | grep -E "Radeon|AMD|ATI";then
+   $INSTALL vulkan-{radeon,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver
+   if [ "$STEAM" = true ];then
+       $INSTALL lib32-vulkan-radeon
+   fi
+   printf "RUSTICL_ENABLE=radeonsi\n" >> /etc/environment
+elif lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
+     $INSTALL vulkan-{intel,icd-loader} mesa opencl-rusticl-mesa libva-{intel-driver,utils,vdpau-driver} intel-media-driver
+     if [ "$STEAM" = true ];then
+         $INSTALL lib32-vulkan-intel
+     fi
+     printf "RUSTICL_ENABLE=iris\n" >> /etc/environment
+fi
+
+#System Packages
+#Pipewire
+$INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
+
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} p7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl earlyoom clamav plymouth apparmor audit python-{notify2,psutil} alacritty
+
+if [ "$LAPTOP" = true ];then
+    $INSTALL tlp
+fi
+
+if [ "$STEAM" = true ];then
+    $INSTALL steam
+fi
+#Virtual Machine
+if [ "$VM" = true ];then
+    $INSTALL qemu-full edk2-ovmf virt-{manager,viewer} dnsmasq vde2 bridge-utils openbsd-netcat
+fi
+
+#Flatpak Setup
+if pacman -Q linux-hardened;then
+   sudo pacman -Syu --needed --noconfirm flatpak bubblewrap-suid;else
+   sudo pacman -Syu --needed --noconfirm flatpak bubblewrap
+fi
+
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+#Artix services
+if [ "$ARTIX" = true ];then
+    $INSTALL {sddm,cups,chrony,ufw,earlyoom,clamav,apparmor,audit}-"$INIT" "$INIT"-system
+    if [ "$LAPTOP" = true ];then
+        $INSTALL tlp-"$INIT"
+    fi
+    if [ "$VM" = true ];then
+       $INSTALL libvirt-"$INIT"
+    fi
+    if [ "$CRON" = fcron ];then
+        if pacman -Q cronie;then
+            pacman -Rns --noconfirm cronie{,-"$INIT"}
+        fi
+       $INSTALL fcron{,-"$INIT"}
+    fi;else
+    if [ "$CRON" = fcron ];then
+        if pacman -Q cronie;then
+            pacman -Rns --noconfirm cronie
+        fi
+        $INSTALL fcron
+    fi
+fi
+
+#KDE Plasma
+$INSTALL plasma-meta cryfs flatpak-kcm fwupd packagekit-qt6 xdg-desktop-portal-{kde,gtk} gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-{inotify-survey,cli-tools},graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5 plymouth-kcm
+
+#Zram & Swap
+#Get Total RAM
+unset RAM #Prevent miscalculations
+for i in $(dmidecode --type memory | grep -i "size" | awk '!/Volatile|Cache|Logical/' |
+ tr -Cd "[:digit:][:space:]" | awk '{$1=$1};1');do
+    if [ -z "$RAM" ];then
+        RAM=0
+    fi
+    RAM=$(($NUM+$i))
+done
+
+if [ "$RAM" -ge 8 ];then
+    printf "zram" > /etc/modules-load.d/zram.conf
+    printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
+    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sG\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$(($RAM/2))" > /etc/udev/rules.d/99-zram.rules
+    sed -i 's;quiet;zswap.enabled=0 quiet;' "$GRUB_DIR"
+    printf "/dev/zram0 none swap defaults,pri=100 0 0\n" >> /etc/fstab
+else
+    #2GB Predetermined swap file
+    if [ "$FS" = btrfs ];then
+        cd /
+        btrfs subvolume create ".swap"
+        btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
+        cp /etc/fstab /etc/fstab.bak
+        printf "/.swap/swapfile none swap defaults 0 0\n" >> /etc/fstab
+        cd;else
+        dd if=/dev/zero of=/.swapfile bs=1M count=2048 status=progress
+        chmod 600 /.swapfile
+        mkswap -U clear /.swapfile
+        cp /etc/fstab /etc/fstab.bak
+        printf "/.swapfile none swap defaults 0 0\n" > /etc/fstab
+    fi
+fi
+
+#Plymouth Setup
+sed -i 's/udev/udev plymouth/g/' /etc/mkinitcpio.conf
+if ! grep splash "$GRUB_DIR";then
+    sed -i 's/quiet/quiet splash/' "$GRUB_DIR"
+fi
+plymouth-set-default-theme bgrt
+
+#Set SDDM theme
+printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
+
+#Sysctl Settings
+if ! [ -d /etc/sysctl.d ];then
+    mkdir /etc/sysctl.d/
+fi
+printf "#Hide kernel pointers\nkernel.kptr_restrict=2\n\n#Restrict access to kernel log\nkernel.dmesg_restrict=1\n\n#Restrict kernel log output during boot\nkernel.printk=3 3 3 3\n\n#Restrict BPF & enable JIT hardening\nkernel.unprivileged_bpf_disabled=1\nnet.core.bpf_jit_harden=2\n\n#Restrict loading of TTY line disciplines\ndev.tty.ldisc_autoload=0\n\n#Mitigate use-after-free flaws\nvm.unprivileged_userfaultfd=0\n\n#Prevent loading of another kernel during runtime\nkernel.kexec_load_disabled=1\n\n#Restrict SysRq access to only through use of the secure attention key (Set to '0' to disable SysRq)\nkernel.sysrq=4\n\n#Restrict use of kernel performance events\nkernel.perf_event_paranoid=3" > /etc/sysctl.d/99-kernel-security.conf
+printf "#Protect against SYN flood attacks\nnet.ipv4.tcp_syncookies=1\n\n#Drop RST packets in time-wait state\nnet.ipv4.tcp_rfc1337=1\n\n#IP source validation\nnet.ipv4.conf.all.rp_filter=1\nnet.ipv4.conf.default.rp_filter=1\n\n#Disable TCP timestamps\nnet.ipv4.tcp_timestamps=0\n\n#Prevent source routing\nnet.ipv4.conf.all.accept_source_route=0\nnet.ipv4.conf.default.accept_source_route=0\nnet.ipv6.conf.all.accept_source_route=0\nnet.ipv6.conf.default.accept_source_route=0\n\n#IPv6 privacy extentions\nnet.ipv6.conf.all.use_tempaddr = 2\nnet.ipv6.conf.default.use_tempaddr = 2" > /etc/sysctl.d/99-network.conf
+printf "#Increase ASLR bit entropy\nvm.mmap_rnd_bits=32\nvm.mmap_rnd_compat_bits=16\n\n#Allow sym/hardlinks to be created only when destination is not world-writable or shares the same owner of the source\nfs.protected_symlinks=1\nfs.protected_hardlinks=1\n\n#Prevents access to files in world-writable directories by those who are not the owner\nfs.protected_fifos=2\nfs.protected_regular=2" > /etc/sysctl.d/99-userspace.conf
+printf "#Improve compatability by increasing memory map count\nvm.max_map_count=2147483642\nvm.swappiness=50" > /etc/sysctl.d/99-ram.conf
+if [ -f /etc/udev/rules.d/99-zram.rules ];then
+    sed -i '/vm.swappiness/d' /etc/sysctl.d/99-ram.conf
+    printf "\n#Optimise zram performance\nvm.watermark_boost_factor = 0\nvm.watermark_scale_factor = 125\nvm.page-cluster = 1" >> /etc/sysctl.d/99-ram.conf
+fi
+sed -i 's/quiet/nowatchdog quiet/' "$GRUB_DIR"
+
+#Apparmor & Audit Config
+sed -i 's/quiet/lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off random.trust_cpu=off quiet/' "$bootdir"
+sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
+groupadd -r audit
+gpasswd -a "$USERNAME" audit
+sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
+
+#Kernel Lockdown
+if [ "$LOCKDOWN" != false ];then
+        sed -i "s/slab_nomerge/lockdown=$LOCKDOWN slab_nomerge/" "$GRUB_DIR"
+fi
+
+#Networkmanager
+printf "[connection]\nipv6.ip6-privacy=2" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
+#Enable opportunistic (Allow fallbacks) DNS-over-TLS
+#printf "[connection]\nconnection.dns-over-tls=1" > /etc/NetworkManager/conf.d/dns-over-tls.conf
+#Enable DNSSEC
+#printf "conf-file=/usr/share/dnsmasq/trust-anchors.conf\ndnssec" > /etc/NetworkManager/dnsmasq.d/dnssec.conf
+
+#Whonix Machine ID
+printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id
+printf "b08dfa6083e7567a1921a715000001fb" > /var/lib/dbus/machine-id
+
+#Qemu setup
+if [ "$VM" = true ];then
+    if [ "$FS" = btrfs ];then
+        chattr +C /var/lib/libvirt/images/
+    fi
+    sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
+    sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
+    sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
+    gpasswd -a "$USERNAME" libvirt
+fi
+
+#Firewall settings
+ufw enable
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow http
+ufw allow https
+ufw allow dns
+ufw allow mdns
+ufw allow 631
+ufw allow qbittorrent
+
+#Earlyoom Config
+if [ "$ARTIX" != true ];then
+    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|systemd)'", /etc/default/earlyoom
+elif [ "$INIT" = dinit ];then
+    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|dinit)'", /etc/dinit.d/config/earlyoom.conf
+else
+    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|$init)'", /etc/default/earlyoom
+fi
+
+cp -r "$HOME"/archix /home/"$USERNAME"

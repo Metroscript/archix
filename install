@@ -1,0 +1,22 @@
+#!/bin/sh
+REPO="$HOME"/archix
+sh "$REPO"/Scripts/pre_install
+
+sh "$REPO"/Scripts/iso
+
+. "$REPO"/Scripts/vars
+
+cp "$REPO" /mnt/root
+
+if [ "$ARTIX" = true ];then
+    CHROOT=artix-chroot;else
+    CHROOT=arch-chroot
+fi
+
+$CHROOT /mnt "$HOME"/archix/Scripts/chroot
+$CHROOT /mnt /usr/bin/runuser -u "$USERNAME" -- /home/"$USERNAME"/archix/Scripts/chroot_user
+$CHROOT /mnt "$HOME"/archix/Scripts/chroot_post
+
+printf "\n\nINSTALL COMPLETE! - Press enter to reboot\n\n"
+read reboot
+reboot

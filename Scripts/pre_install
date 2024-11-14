@@ -1,0 +1,322 @@
+#!/bin/sh
+VAR_FILE="$HOME"/archix/Scripts/vars
+if ! [ -f "$VAR_FILE" ];then
+    touch "$VAR_FILE"
+fi
+
+if grep -qi "Artix" /etc/os-release;then
+    ARTIX=true
+    printf "ARTIX=true\n" >> "$VAR_FILE" 
+fi
+
+if [ -d /sys/firmware/efi/efivars ];then
+    EFI=true
+    printf "EFI=true\n" >> "$VAR_FILE"
+fi
+CHASSIS=$(cat /sys/class/dmi/id/chassis_type)
+if [ "$CHASSIS" = 9 ] || [ "$CHASSIS" = 10 ];then
+    LAPTOP=true
+    printf "LAPTOP=true\n" >> "$VAR_FILE"
+fi
+
+printf "TIMEZONE=%s\n" "$(curl -s https://ipapi.co/timezone)" >> "$VAR_FILE"
+printf "COUNTRY=%s\n" "$(curl -s https://ipapi.co/timezone|cut -d/ -f1)" >> "$VAR_FILE"
+
+DISKS=$(lsblk -no TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2" | "$3}')
+while :;do
+    unset INSTALL_DISK VAL_DISK DRIVE_CONF DISK_PICK
+    printf "From the following, select the disk to install on:\n%s\nDisk name: " "$DISKS"
+    read INSTALL_DISK
+    for DISK in $(printf "%s" "$DISKS" | cut -d\  -f1);do
+        if [ "$INSTALL_DISK" = "$DISK" ];then
+            VAL_DISK=true
+        fi
+    done
+    if [ "$VAL_DISK" = true ];then
+        until [ "$DRIVE_CONF" = y ] || [ "$DRIVE_CONF" = n ];do
+            printf "Install Linux on \"%s\"? THIS WILL FORMAT AND DELETE ALL DATA!\n[y/n]: " "$INSTALL_DISK"
+            read DRIVE_CONF
+        done
+        if [ "$DRIVE_CONF" = y ];then
+            break;else
+            until [ "$DISK_PICK" = y ] || [ "$DISK_PICK" = n ];do
+                printf "Pick another disk for installation?\n[y/n]: "
+                read DISK_PICK
+            done
+            if [ "$DISK_PICK" = y ];then
+                continue;else
+                printf "EXITING INSTALLATION DUE TO NO INSTALL DISK PICKED...\n"
+                exit 1
+            fi
+        fi;else
+        printf "\"%s\" is not a valid installation disk!\n" "$INSTALL_DISK"
+        continue
+    fi
+done
+if grep -q 0 /sys/block/$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)/queue/rotational;then
+    SSD=true;else
+    SSD=false
+fi
+printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
+
+until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = y ];do
+    printf "Allocate a separate disk partition for /boot?\n[y/n]: "
+    read PART_BOOT
+done
+if [ "$PART_BOOT" = y ];then
+    until [ "$BOOT_FS" = 1 ] || [ "$BOOT_FS" = 2 ];do
+        printf "Select filesystem for /boot: 1.EXT4 2.BTRFS\n[1,2]: "
+        read BOOT_FS
+    done
+    if [ "$BOOT_FS" = 1 ];then
+        BOOT_FS=ext4;else
+        BOOT_FS=btrfs
+    fi
+    printf "PART_BOOT=true\nBOOT_FS=%s\n" "$BOOT_FS" >> "$VAR_FILE"
+fi
+
+until [ "$FS" = 1 ] || [ "$FS" = 2 ];do
+    printf "Select a filesystem for root: 1.EXT4 2.BTRFS\n[1,2]: "
+    read FS
+done
+if [ "$FS" = 1 ];then
+    FS=ext4;else
+    FS=btrfs
+fi
+printf "FS=%s\n" "$FS" >> "$VAR_FILE"
+
+if [ "$FS" = btrfs ];then
+    until [ "$VOL_CREATE" = y ] || [ "$VOL_CREATE" = n ];do
+        printf "Create BTRFS subvolumes?\n[y/n]: "
+        read VOL_CREATE
+    done
+    if [ "$VOL_CREATE" = y ];then
+        until [ "$NEW_SUBVOL" = n ];do
+            unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
+            until [ -n "$SUBVOL_NAME" ];do
+                printf "Name of subvolume: "
+                read SUBVOL_NAME
+            done
+            for i in $SUBVOLS;do
+                if [ "$SUBVOL_NAME" = "$i" ];then
+                    printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
+                    continue 2
+                fi
+            done
+            until [ -n "$SUBVOL_PATH" ];do
+                printf "Mount point for the \"%s\" subvolume\n" "$SUBVOL_NAME"
+                read SUBVOL_PATH
+            done
+            for i in $SUBVOL_PATHS;do
+                if [ "$SUBVOL_PATH" = "$i" ];then
+                    printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
+                    continue 2
+                fi
+            done
+            until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
+                printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
+                read SUBVOL_CONF
+            done
+            if [ "$SUBVOL_CONF" = y ];then
+                if [ -z "$SUBVOLS" ];then
+                    SUBVOLS="$SUBVOL_NAME";else
+                    SUBVOLS="$SUBVOLS $SUBVOL_NAME"
+                fi
+                if [ -z "$SUBVOL_PATHS" ];then
+                    SUBVOL_PATHS="$SUBVOL_PATH";else
+                    SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
+                fi
+                until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
+                    printf "Create another subvolume?\n[y/n]: "
+                    read NEW_SUBVOL
+                done
+                if [ "$NEW_SUBVOL" = y ];then
+                    continue
+                fi
+            fi
+        done
+        printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
+    fi
+fi
+if [ -n "$SUBVOLS" ];then
+    until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
+        printf "Install snapper for automated subvolume snapshots?\n[y/n]: "
+        read SNAPPER
+    done
+    if [ "$SNAPPER" = y ];then
+        SNAPPER=true;else
+        SNAPPER=false
+    fi
+    printf "SNAPPER=%s\n" "$SNAPPER" >> "$VAR_FILE"
+    if [ "$SNAPPER" = true ];then
+        for i in $SUBVOLS;do
+            unset SNAP_CONF
+            SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
+            until [ "$SNAP_CONF" = y ] || [ "$SNAP_CONF" = n ];do
+                printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$SNAP_MOUNT_POINT"
+                read SNAP_CONF
+            done
+            if [ "$SNAP_CONF" = y ];then
+                printf "snapper -c %s create-config %s\n" "$i" "$SNAP_MOUNT_POINT" >> "$HOME"/archix/Scripts/snapper.sh
+            fi
+            SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
+        done
+    fi
+fi
+
+until [ "$UN_CONF" = y ];do
+    unset UN_CONF
+    until [ -n "$USERNAME" ];do
+        printf "Username for standard user: "
+        read USERNAME
+    done
+    until [ "$UN_CONF" = y ] || [ "$UN_CONF" = n ];do
+        printf "Create user: \"%s\"?\n[y/n]: " "$USERNAME"
+        read UN_CONF
+    done
+done
+while :;do
+    unset PASSWORD PASSWD_CONF
+    until [ -n "$PASSWORD" ];do
+        printf "Password for standard user: "
+        read PASSWORD
+    done
+    until [ -n "$PASSWD_CONF" ];do
+        printf "Confirm Password for standard user: "
+        read PASSWD_CONF
+    done
+    if [ "$PASSWORD" = "$PASSWD_CONF" ];then
+        break;else
+        continue
+    fi
+done
+printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+
+until [ "$SHELL" = 1 ] || [ "$SHELL" = 2 ] || [ "$SHELL" = 3 ];do
+    printf "Set shell for user: \"%s\". 1.bash 2.fish 3.dash\n[1/2/3]: " "$USERNAME"
+    read SHELL
+done
+if [ "$SHELL" = 1 ];then
+    SHELL=bash
+elif [ "$SHELL" = 2 ];then
+    SHELL=fish;else
+    SHELL=dash
+fi
+printf "SHELL=%s\n" "$SHELL" >> "$VAR_FILE"
+
+until [ "$HN_CONF" = n ];do
+    unset HN_CONF
+    until [ -n "$HN" ];do
+        printf "Enter Hostname for install: "
+        read HN
+    done
+    until [ "$HN_CONF" = y ] || [ "$HN_CONF" = n ];do
+        printf "Use Hostname: \"%s\"?\n[y/n]" "$HN"
+        read HN_CONF
+    done
+done
+printf "HN=\"%s\"\n" "$HN" >> "$VAR_FILE"
+
+if [ "$ARTIX" = true ];then
+    until [ "$INIT" -ge 1 ] && [ "$INIT" -le 4 ];do
+        printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
+        read INIT
+    done
+    printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
+fi
+until [ "$DOAS" = true ] || [ "$DOAS" = false ];do
+    printf "Install doas as a sudo replacement?\n[y/n]: "
+    read DOAS
+    if [ "$DOAS" = y ];then
+        DOAS=true
+        sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/.bashrc
+        sed -i "/stuff/a alias sudo doas" "$HOME"/archix/dotfiles/shells/config.fish
+    elif [ "$DOAS" = n ];then
+        DOAS=false
+    fi
+done
+
+until [ "$ADD_KERNELS" = n ];do
+    unset ADD_KERNELS
+    until [ "$KERNEL" = 1 ] || [ "$KERNEL" = 2 ] || [ "$KERNEL" = 3 ] || [ "$KERNEL" = 4 ] || [ "$KERNEL" = 5 ] || [ "$KERNEL" = 6 ];do
+        printf "Which Linux kernel would you like to install? 1.Stock 2.LTS 3.Zen 4.Hardened 5.RT 6.RT-LTS\n[1,2,3,4,5,6]: "
+        read KERNEL
+    done
+
+    if [ "$KERNEL" = 1 ];then
+        KERNEL=linux
+    elif [ "$KERNEL" = 2 ];then
+        KERNEL=linux-lts
+    elif [ "$KERNEL" = 3 ];then
+        KERNEL=linux-zen
+    elif [ "$KERNEL" = 4 ];then
+        KERNEL=linux-hardened
+    elif [ "$KERNEL" = 5 ];then
+        KERNEL=linux-rt;else
+        KERNEL=linux-rt-lts
+    fi
+
+    for i in $KERNELS;do
+        if [ "$KERNEL" = "$i" ];then
+            printf "ERROR: The %s kernel was already selected!\n" "$KERNEL"
+            continue 2
+        fi
+    done
+
+    if [ -z "$KERNELS" ];then
+        KERNELS="$KERNEL";else
+        KERNELS="$KERNELS $KERNEL"
+    fi
+    until [ "$ADD_KERNELS" = y ] || [ "$ADD_KERNELS" = n ];do
+        printf "Install additional kernels?\n[y/n]: "
+        read ADD_KERNELS
+    done
+done
+
+for i in $KERNELS;do
+    if [ -z "$HEADERS" ];then
+        HEADERS="${i}-headers";else
+        HEADERS="$HEADERS ${i}-headers"
+    fi
+done
+printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
+
+until [ "$LOCKDOWN" -ge 0 ] || [ "$LOCKDOWN" -le 3 ];do
+    printf "nable Kernel lockdown to prevent modification of kernel during runtime? (Prevents non-signed kernel modules from loading)\n0.No (Default) 1.Integrity (Standard Lockdown) 2.Confidential (Changes how RAM is accessed; Can cause issues)\n[0,1,2]: "
+    read LOCKDOWN
+done
+if [ "$LOCKDOWN" -gt 0 ];then
+    if [ "$LOCKDOWN" = 1 ];then
+        LOCKDOWN=integrity;else
+        LOCKDOWN=confidential
+    fi
+fi
+printf "LOCKDOWN=%s\n" "$LOCKDOWN" >> "$VAR_FILE"
+
+until [ "$CRON" = 1 ] || [ "$CRON" = 2 ];do
+    printf "Install 1.Cronie or 2.Fcron for cron daemon?\n[1,2]: "
+    read CRON
+done
+if [ "$CRON" = 1 ];then
+    printf "CRON=cronie\n" >> "$VAR_FILE";else
+    printf "CRON=fcron\n" >> "$VAR_FILE"
+fi
+
+
+until [ "$VM" = y ] || [ "$VM" = n ];do
+    printf "Install Qemu for virtual machines?\n[y/n]: "
+    read VM
+done
+if [ "$VM" = y ];then
+    printf "VM=true\n" >> "$VAR_FILE";else
+    printf "VM=false\n" >> "$VAR_FILE"
+fi
+
+until [ "$STEAM" = y ] || [ "$STEAM" = n ];do
+    printf "Install Steam?\n[y/n]: "
+    read STEAM
+done
+if [ "$STEAM" = y ];then
+    printf "STEAM=true\n" >> "$VAR_FILE";else
+    printf "STEAM=false\n" >> "$VAR_FILE"
+fi

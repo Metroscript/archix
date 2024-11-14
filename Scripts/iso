@@ -1,0 +1,99 @@
+#!/bin/sh
+. "$HOME"/archix/Scripts/vars
+
+#Speed up install
+sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+
+#PARTITION DISKS
+umount -AR /mnt
+
+wipefs -af "$INSTALL_DISK"
+
+#Create GPT table and BIOS/UEFI partition
+if [ "$EFI" = true ];then
+    printf "g\nn\n\n\n+100M\nt\n\nEFI System\nw" | fdisk -W always "$INSTALL_DISK";else
+    printf "g\nn\n\n\n+1M\nt\n\nBIOS boot\nw" | fdisk -W always "$INSTALL_DISK"
+fi
+if [ "$PART_BOOT" = true ];then
+    printf "n\n\n\n+1G\nt\n\nLinux Filesystem\nw" | fdisk -W always "$INSTALL_DISK"
+fi
+printf "n\n\n\n\n\nt\n\nLinux Filesystem\nw" | fdisk -W always "$INSTALL_DISK"
+
+if printf "%s" "$INSTALL_DISK" | grep -q nvme;then
+    PARTITION="$INSTALL_DISK"p;else
+    PARTITION="$INSTALL_DISK"
+fi
+EFI_BIOS_PART="$PARTITION"1
+if [ "$PART_BOOT" = true ];then
+    BOOT_PART="$PARTITION"2
+    ROOT_PART="$PARTITION"3;else
+    ROOT_PART="$PARTITION"2
+fi
+
+#FORMAT FS
+if [ "$EFI" = true ];then
+    mkfs.fat -F 32 -n EFI "$EFI_BIOS_PART"
+fi
+if [ "$PART_BOOT" = true ];then
+    mkfs."$BOOT_FS" -L Boot "$BOOT_PART"
+fi
+if [ "$FS" = ext4 ];then
+    mkfs.ext4 -L Root "$ROOT_PART";else
+    mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
+fi
+
+#Make subvolumes
+if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
+    mount -o noatime "ROOT_PART" /mnt
+    for i in $SUBVOLS;do
+        btrfs subvolume create /mnt/"$i"
+    done
+fi
+
+#MOUNT
+for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | grep $(printf "%s" "$INSTALL_DISK" | cut -d\ -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -cd '0-9 ');do
+    if [ "$i" = 0 ];then
+        NO_DISCARD=true
+    fi
+done
+
+if [ "$FS" = btrfs ];then
+    if [ "$NO_DISCARD" = true ];then
+        MOUNT_OPTS="noatime,compress-force=zstd,discard=async,space_cache=v2";else
+        MOUNT_OPTS="noatime,compress-force=zstd,space_cache=v2"
+    fi
+    if [ -n "$SUBVOLS" ];then
+        for i in $SUBVOLS;do
+            MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
+            mount --mkdir -o "$MOUNT_OPTS",subvol="$i" "$ROOT_PART" "$MOUNT_POINT"
+            SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
+        done;else
+        mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
+    fi;else
+    if [ "$NO_DISCARD" = true ];then
+        mount -o noatime,discard=async /mnt;else
+        mount -o noatime /mnt
+    fi
+fi
+
+if [ "$PART_BOOT" = true ];then
+    mount --mkdir -o noatime "$BOOT_PART" /mnt/boot
+fi
+
+if [ "$EFI" = true ];then
+    mount --mkdir -o noatime "$EFI_BIOS_PART" /mnt/efi
+fi
+
+#Install Base root!
+if [ "$ARTIX" = true ];then
+    basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" dnsmasq wget btrfs-progs grub
+    if [ "$EFI" = true ];then
+        basestrap /mnt efibootmgr
+    fi
+    fstabgen -U /mnt >> /mnt/etc/fstab;else
+    pacstrap -K /mnt base $KERNELS $HEADERS linux-firmware networkmanager dnsmasq wget btrfs-progs grub
+     if [ "$EFI" = true ];then
+        pacstrap /mnt efibootmgr
+     fi
+    genfstab -U /mnt >> /mnt/etc/fstab
+fi

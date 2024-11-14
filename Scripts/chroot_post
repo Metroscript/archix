@@ -1,0 +1,75 @@
+#!/bin/sh
+. "$HOME"/archix/Scripts/vars
+
+#password :wheel perms
+if pacman -Q opendoas;then
+    sed -i "s/nopass/persist/" /etc/doas.conf;else
+    sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/"/etc/sudoers
+fi
+
+#Services
+# Regenerate the initramfs and grub config in case they've been updated
+mkinitcpio -P
+grub-mkconfig -o /boot/grub/grub.cfg
+
+#Enable init services
+if [ "$VM" = true ];then
+    QEMU=" libvirtd virtlogd"
+fi
+if [ "$LAPTOP" = true ];then
+    TLP=" tlp"
+fi
+
+SERVICES="ufw chronyd sddm $CRON earlyoom apparmor auditd $QEMU$TLP"
+
+if [ "$ARTIX" != true ];then
+    SERVICES="cups clamav-freshclam $SERVICES"
+    systemctl enable $SERVICES
+else
+    SERVICES="cupsd freshclam $SERVICES"
+    for SERVICE in $SERVICES;do
+        if [ "$INIT" = dinit ];then
+            INITSTART="ln -s /etc/dinit.d/$SERVICE /etc/dinit.d/boot.d/"
+        elif [ "$INIT" = runit ];then
+            INITSTART="ln -s /etc/runit/sv/$SERVICE /run/runit/service/"
+        elif [ "$INIT" = openrc ];then
+            INITSTART="rc-update add $SERVICE default"
+        elif [ "$INIT" = s6 ];then
+            INITSTART="touch /etc/s6/adminsv/default/contents.d/$SERVICE"
+        fi
+        $INITSTART
+    done
+fi
+
+#if [ "$grbtrfs" = y ];then
+#    if [ "$init" = dinit ];then
+#        printf "type            = process\nenv-file        = /etc/default/grub-btrfs/config\ncommand         = /usr/bin/grub-btrfsd --syslog /.snapshots\nsmooth-recovery = true" | sudo tee /etc/dinit.d/grub-btrfsd
+#        dinitctl enable grub-btrfsd;else
+#        systemctl enable grub-btrfsd
+#    fi
+#fi
+
+if [ "$INIT" = s6 ];then
+    s6-db-reload
+fi
+
+if [ "$VM" = true ];then
+    if [ "$ARTIX" != true ];then
+        systemctl start libvirtd.service virtlogd.socket
+    else
+        if [ "$INIT" = dinit ];then
+            dinitctl start libvirtd
+            dinitctl start virtlogd
+        elif [ "$INIT" = runit ];then
+            sv up libvirtd
+            sv up virtlogd
+        elif [ "$INIT" = openrc ];then
+            rc-service libvirtd start
+            rc-service virtlogd start
+        elif [ "$INIT" = s6 ];then
+            s6-rc -u change libvirtd
+            s6-rc -u change virtlogd
+        fi
+    fi
+    virsh net-autostart default
+fi
