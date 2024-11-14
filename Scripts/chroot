@@ -3,6 +3,9 @@
 
 INSTALL="pacman -S --needed --noconfirm"
 
+#Update to get repos
+pacman -Syu
+
 #Pacman Config
 sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 
