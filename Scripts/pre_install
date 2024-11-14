@@ -174,6 +174,9 @@ until [ "$UN_CONF" = y ];do
         printf "Create user: \"%s\"?\n[y/n]: " "$USERNAME"
         read UN_CONF
     done
+    if [ "$UN_CONF" != y ];then
+        continue
+    fi
 done
 while :;do
     unset PASSWORD PASSWD_CONF
@@ -206,7 +209,7 @@ fi
 printf "SHELL=%s\n" "$SHELL" >> "$VAR_FILE"
 
 until [ "$HN_CONF" = y ];do
-    unset HN_CONF
+    unset HN_CONF HN
     until [ -n "$HN" ];do
         printf "Enter Hostname for install: "
         read HN
@@ -219,7 +222,7 @@ done
 printf "HN=\"%s\"\n" "$HN" >> "$VAR_FILE"
 
 if [ "$ARTIX" = true ];then
-    until [ "$INIT" -ge 1 ] && [ "$INIT" -le 4 ];do
+    until [ "$INIT" = 1 ] || [ "$INIT" = 2 ] || [ "$INIT" = 3 ] || [ "$INIT" = 4 ];do
         printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
         read INIT
     done

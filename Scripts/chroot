@@ -3,18 +3,19 @@
 
 INSTALL="pacman -S --needed --noconfirm"
 
-#Update to get repos
-pacman -Syu
-
 #Pacman Config
 sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 
 if [ "$ARTIX" = true ];then
    sed -i -z -e 's,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,' -i -z -e 's,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist\n\n#Arch Repos\n\n#\[extra-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[extra\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib\]\n#Include = /etc/pacman.d/mirrorlist-arch,' /etc/pacman.conf
-   $INSTALL artix-archlinux-support
+   pacman -Syu --needed --noconfirm artix-archlinux-support
    sed -i -e "/\[lib32\]/,/Include/"'s/^#//' -i -e "/\[extra\]/,/Include/"'s/^#//' /etc/pacman.conf
    pacman-key --populate
 fi
+
+#Update to get repos
+pacman -Syu --noconfirm
+
 $INSTALL base-devel
 if [ "$DOAS" = true ];then
     pacman -R --noconfirm base-devel sudo
@@ -124,8 +125,8 @@ fi
 
 #Flatpak Setup
 if pacman -Q linux-hardened;then
-   sudo pacman -Syu --needed --noconfirm flatpak bubblewrap-suid;else
-   sudo pacman -Syu --needed --noconfirm flatpak bubblewrap
+   pacman -Syu --needed --noconfirm flatpak bubblewrap-suid;else
+   pacman -Syu --needed --noconfirm flatpak bubblewrap
 fi
 
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -191,7 +192,7 @@ else
 fi
 
 #Plymouth Setup
-sed -i 's/udev/udev plymouth/g/' /etc/mkinitcpio.conf
+sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
 if ! grep splash "$GRUB_DIR";then
     sed -i 's/quiet/quiet splash/' "$GRUB_DIR"
 fi

@@ -86,12 +86,12 @@ fi
 
 #Install Base root!
 if [ "$ARTIX" = true ];then
-    basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" dnsmasq wget btrfs-progs grub
+    basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" dnsmasq wget btrfs-progs git grub
     if [ "$EFI" = true ];then
         basestrap /mnt efibootmgr
     fi
     fstabgen -U /mnt >> /mnt/etc/fstab;else
-    pacstrap -K /mnt base $KERNELS $HEADERS linux-firmware networkmanager dnsmasq wget btrfs-progs grub
+    pacstrap -K /mnt base $KERNELS $HEADERS linux-firmware networkmanager dnsmasq wget btrfs-progs git grub
      if [ "$EFI" = true ];then
         pacstrap /mnt efibootmgr
      fi
