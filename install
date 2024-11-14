@@ -6,7 +6,7 @@ sh "$REPO"/Scripts/iso
 
 . "$REPO"/Scripts/vars
 
-cp "$REPO" /mnt/root
+cp -r "$REPO" /mnt/root
 
 if [ "$ARTIX" = true ];then
     CHROOT=artix-chroot;else
