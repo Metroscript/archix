@@ -282,7 +282,7 @@ for i in $KERNELS;do
 done
 printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 
-until [ "$LOCKDOWN" -ge 0 ] || [ "$LOCKDOWN" -le 3 ];do
+until [ "$LOCKDOWN" = 0 ] || [ "$LOCKDOWN" = 1 ] || [ "$LOCKDOWN" = 2 ];do
     printf "nable Kernel lockdown to prevent modification of kernel during runtime? (Prevents non-signed kernel modules from loading)\n0.No (Default) 1.Integrity (Standard Lockdown) 2.Confidential (Changes how RAM is accessed; Can cause issues)\n[0,1,2]: "
     read LOCKDOWN
 done

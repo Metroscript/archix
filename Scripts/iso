@@ -44,7 +44,7 @@ fi
 
 #Make subvolumes
 if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
-    mount -o noatime "ROOT_PART" /mnt
+    mount -o noatime "$ROOT_PART" /mnt
     for i in $SUBVOLS;do
         btrfs subvolume create /mnt/"$i"
     done
