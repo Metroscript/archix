@@ -205,7 +205,7 @@ elif [ "$SHELL" = 2 ];then
 fi
 printf "SHELL=%s\n" "$SHELL" >> "$VAR_FILE"
 
-until [ "$HN_CONF" = n ];do
+until [ "$HN_CONF" = y ];do
     unset HN_CONF
     until [ -n "$HN" ];do
         printf "Enter Hostname for install: "
@@ -230,7 +230,7 @@ until [ "$DOAS" = true ] || [ "$DOAS" = false ];do
     read DOAS
     if [ "$DOAS" = y ];then
         DOAS=true
-        sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/.bashrc
+        sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/bash/.bashrc
         sed -i "/stuff/a alias sudo doas" "$HOME"/archix/dotfiles/shells/config.fish
     elif [ "$DOAS" = n ];then
         DOAS=false
