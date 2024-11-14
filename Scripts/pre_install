@@ -135,7 +135,7 @@ if [ "$FS" = btrfs ];then
                 fi
             fi
         done
-        printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
+        printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
     fi
 fi
 if [ -n "$SUBVOLS" ];then
