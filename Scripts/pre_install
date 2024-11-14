@@ -187,6 +187,7 @@ while :;do
     done
     if [ "$PASSWORD" = "$PASSWD_CONF" ];then
         break;else
+        printf "PASSWORDS DID NOT MATCH!\n"
         continue
     fi
 done
@@ -211,7 +212,7 @@ until [ "$HN_CONF" = n ];do
         read HN
     done
     until [ "$HN_CONF" = y ] || [ "$HN_CONF" = n ];do
-        printf "Use Hostname: \"%s\"?\n[y/n]" "$HN"
+        printf "Use Hostname: \"%s\"?\n[y/n]: " "$HN"
         read HN_CONF
     done
 done
