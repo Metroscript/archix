@@ -270,3 +270,4 @@ else
 fi
 
 cp -r "$HOME"/archix /home/"$USERNAME"
+chown -R "$USERNAME": /home/"$USERNAME"/archix

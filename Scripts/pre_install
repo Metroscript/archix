@@ -225,17 +225,18 @@ if [ "$ARTIX" = true ];then
     done
     printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
 fi
-until [ "$DOAS" = true ] || [ "$DOAS" = false ];do
+until [ "$DOAS" = y ] || [ "$DOAS" = n ];do
     printf "Install doas as a sudo replacement?\n[y/n]: "
     read DOAS
-    if [ "$DOAS" = y ];then
-        DOAS=true
-        sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/bash/.bashrc
-        sed -i "/stuff/a alias sudo doas" "$HOME"/archix/dotfiles/shells/config.fish
-    elif [ "$DOAS" = n ];then
-        DOAS=false
-    fi
 done
+if [ "$DOAS" = y ];then
+    DOAS=true
+    sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/bash/.bashrc
+    sed -i "/stuff/a alias sudo doas" "$HOME"/archix/dotfiles/shells/config.fish
+elif [ "$DOAS" = n ];then
+    DOAS=false
+fi
+printf "DOAS=%s" "$DOAS" >> "VAR_FILE"
 
 until [ "$ADD_KERNELS" = n ];do
     unset ADD_KERNELS

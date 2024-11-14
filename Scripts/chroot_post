@@ -4,7 +4,7 @@
 #password :wheel perms
 if pacman -Q opendoas;then
     sed -i "s/nopass/persist/" /etc/doas.conf;else
-    sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/"/etc/sudoers
+    sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/"/etc/sudoers
 fi
 
 #Services
