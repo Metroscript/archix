@@ -165,7 +165,7 @@ if [ -n "$SUBVOLS" ];then
 fi
 
 until [ "$UN_CONF" = y ];do
-    unset UN_CONF
+    unset UN_CONF USERNAME
     until [ -n "$USERNAME" ];do
         printf "Username for standard user: "
         read USERNAME
@@ -174,9 +174,6 @@ until [ "$UN_CONF" = y ];do
         printf "Create user: \"%s\"?\n[y/n]: " "$USERNAME"
         read UN_CONF
     done
-    if [ "$UN_CONF" != y ];then
-        continue
-    fi
 done
 while :;do
     unset PASSWORD PASSWD_CONF

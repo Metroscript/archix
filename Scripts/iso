@@ -48,6 +48,7 @@ if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
     for i in $SUBVOLS;do
         btrfs subvolume create /mnt/"$i"
     done
+    umount /mnt
 fi
 
 #MOUNT ## NEEDS FIXING

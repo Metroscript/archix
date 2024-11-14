@@ -25,7 +25,7 @@ $INSTALL pacman-contrib pkgfile
 pkgfile -uz "zstd -T0 -19"
 
 #Makepkg Optimisations
-$INSTALL pigs lbzip2
+$INSTALL pigz lbzip2
 sed -i -e 's/#MAKEFLAGS.*/MAKEFLAGS="-j\$(nproc)"/' -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
 if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
@@ -57,7 +57,7 @@ useradd -mG wheel -s /bin/"$SHELL" "$USERNAME"
 printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
 
 #:wheel permissions (nopasswd)
-if pacman -Q opendoas;then
+if [ "$DOAS" = true ];then
     printf "permit nopass :wheel\n" > /etc/doas.conf
     chown -c root:root /etc/doas.conf
     chmod -c 0400 /etc/doas.conf;else
