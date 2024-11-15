@@ -37,10 +37,10 @@ fi
 printf "[Desktop Entry]\nType=Application\nName=Apparmor Notify\nComment=Notify User of Apparmor Denials\nTryExec=aa-notify\nExec=aa-notify -p -s 1 -w 60 -f /var/log/audit/audit.log\nStartupNotify=false\nNoDisplay=true" > "$HOME"/.config/autostart/apparmor-notify.desktop
 
 #config
-mv "$HOME"/archix/dotfils/config/* "$HOME".config/
+mv "$HOME"/archix/dotfiles/config/* "$HOME"/.config/
 #Install Thumbfast
 mkdir "$HOME".config/mpv/scripts/
-cd "$HOME".config/mpv/scripts/
+cd "$HOME"/.config/mpv/scripts/
 #Standard OSC
 wget 'https://raw.githubusercontent.com/po5/thumbfast/5fefc9b8e995cf5e663666aa10649af799e60186/player/lua/osc.lua'
 wget 'https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua'

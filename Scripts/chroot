@@ -216,7 +216,7 @@ fi
 sed -i 's/quiet/nowatchdog quiet/' "$GRUB_DIR"
 
 #Apparmor & Audit Config
-sed -i 's/quiet/lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off random.trust_cpu=off quiet/' "$bootdir"
+sed -i 's/quiet/lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off random.trust_cpu=off quiet/' "$GRUB_DIR"
 sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
 groupadd -r audit
 gpasswd -a "$USERNAME" audit

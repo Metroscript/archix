@@ -104,7 +104,7 @@ if [ "$FS" = btrfs ];then
                 fi
             done
             until [ -n "$SUBVOL_PATH" ];do
-                printf "Mount point for the \"%s\" subvolume\n" "$SUBVOL_NAME"
+                printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
                 read SUBVOL_PATH
             done
             for i in $SUBVOL_PATHS;do
@@ -151,7 +151,10 @@ if [ -n "$SUBVOLS" ];then
     if [ "$SNAPPER" = true ];then
         for i in $SUBVOLS;do
             unset SNAP_CONF
-            SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
+            SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1 | sed 's,/mnt,,')
+            if [ -z "$SNAP_MOUNT_POINT" ];then
+                SNAP_MOUNT_POINT=/
+            fi
             until [ "$SNAP_CONF" = y ] || [ "$SNAP_CONF" = n ];do
                 printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$SNAP_MOUNT_POINT"
                 read SNAP_CONF
@@ -236,7 +239,7 @@ if [ "$DOAS" = y ];then
 elif [ "$DOAS" = n ];then
     DOAS=false
 fi
-printf "DOAS=%s" "$DOAS" >> "VAR_FILE"
+printf "DOAS=%s\n" "$DOAS" >> "$VAR_FILE"
 
 until [ "$ADD_KERNELS" = n ];do
     unset ADD_KERNELS
