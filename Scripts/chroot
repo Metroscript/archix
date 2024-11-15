@@ -34,7 +34,7 @@ fi
 #Snapper Configs
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
-    . "$HOME"/archix/Scripts/snapper.sh
+    sh "$HOME"/archix/Scripts/snapper.sh
 fi
 
 #Set Timezone
@@ -66,7 +66,7 @@ fi
 
 #GRUB
 GRUB_DIR=/etc/default/grub
-sed -i 's/loglevel=./loglevel=0/' "$GRUB_DIR"
+sed -i -e 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=3/' -i -e 's/loglevel=./loglevel=0/' "$GRUB_DIR"
 if [ "$EFI" = true ];then
     grub-install --efi-directory=/efi --bootloader-id=GRUB
     sed -i 's/quiet/efi=disable_early_pci_dma quiet/' "$GRUB_DIR";else

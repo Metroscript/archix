@@ -1,22 +1,25 @@
 #!/bin/sh
 . "$HOME"/archix/Scripts/vars
 
+cd "$HOME"
+
+#Make config folder
+if ! [ -d "$HOME"/.config ];then
+    mkdir "$HOME"/.config
+fi
+
 #Paru
 git clone https://aur.archlinux.org/paru.git
 cd paru
 makepkg -si --noconfirm
-cd
+cd "$HOME"
 rm -rf paru/
-
-if ! [ -d "$HOME"/.config ];then
-    mkdir "$HOME"/.config
-fi
-mkdir .config/paru/
+mkdir "$HOME"/.config/paru/
 
 cp /etc/paru.conf .config/paru/
-sed -i -e 's/#Clean/Clean/' -i -e 's/#UpgradeMenu/UpgradeMenu/' -i -e 's/#News/News/' .config/paru/paru.conf
+sed -i -e 's/#Clean/Clean/' -i -e 's/#UpgradeMenu/UpgradeMenu/' -i -e 's/#News/News/' "$HOME"/.config/paru/paru.conf
 if [ "$DOAS" = true ];then
-    sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' .config/paru/paru.conf
+    sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
 fi
 
 if [ "$ARTIX" != true ];then
@@ -39,16 +42,16 @@ printf "[Desktop Entry]\nType=Application\nName=Apparmor Notify\nComment=Notify 
 #config
 mv "$HOME"/archix/dotfiles/config/* "$HOME"/.config/
 #Install Thumbfast
-mkdir "$HOME".config/mpv/scripts/
+mkdir "$HOME"/.config/mpv/scripts/
 cd "$HOME"/.config/mpv/scripts/
 #Standard OSC
 wget 'https://raw.githubusercontent.com/po5/thumbfast/5fefc9b8e995cf5e663666aa10649af799e60186/player/lua/osc.lua'
 wget 'https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua'
-cd
+cd "$HOME"
 if [ "$STEAM" = true ] && ! [ -d "$HOME"/Games ];then
     mkdir Games
 fi
-mv "$HOME"/archix/dotfiles/shells/bash/* "$HOME"
+mv "$HOME"/archix/dotfiles/shells/bash/.* "$HOME"
 if [ "$SHELL" = fish ];then
     fish -c 'set -U fish_greeting'
     mv "$HOME"/archix/dotfiles/shells/config.fish ~/.config/fish/
