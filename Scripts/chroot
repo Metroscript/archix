@@ -34,15 +34,12 @@ fi
 #Snapper Configs
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
-    SNAP_DIR_RM=$(printf "%s" "$SNAP_DIR_RM" | sed 's/^[ \t]*//')
-    if [ "$MAN_SNAP" = y ];then
-        for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
-            SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
-            cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
-            sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|' -e 's|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
-            sed -i '|SNAPPER_CONFIGS="|SNAPPER_CONFIGS="$SNAP_CONFIG "|' /etc/conf.d/snapper
-        done
-    fi
+    for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
+        SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
+        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
+        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
+    done
+    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
 fi
 
 #Set Timezone
