@@ -254,6 +254,14 @@ if [ "$ARTIX" = true ];then
         printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
         read INIT
     done
+    if [ "$INIT" = 1 ];then
+        INIT=openrc
+    elif [ "$INIT" = 2 ];then
+        INIT=runit
+    elif [ "$INIT" = 3 ];then
+        INIT=dinit;else
+        INIT=s6
+    fi
     printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
 fi
 until [ "$DOAS" = y ] || [ "$DOAS" = n ];do
