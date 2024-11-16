@@ -151,20 +151,20 @@ if [ -n "$SUBVOLS" ];then
     if [ "$SNAPPER" = true ];then
         for i in $SUBVOLS;do
             unset SNAP_CONF
-            SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1 | sed 's,/mnt,,')
-            if [ -z "$SNAP_MOUNT_POINT" ];then
-                SNAP_MOUNT_POINT=/
-            fi
             until [ "$SNAP_CONF" = y ] || [ "$SNAP_CONF" = n ];do
-                printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$SNAP_MOUNT_POINT"
+                printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$(findmnt -nlt btrfs | grep "subvol=/$i" | cut -d\  -f1)"
                 read SNAP_CONF
             done
             if [ "$SNAP_CONF" = y ];then
-                printf "snapper -c %s create-config %s\n" "$i" "$SNAP_MOUNT_POINT" >> "$HOME"/archix/Scripts/snapper.sh
+                if [ -z "$SNAPPER_CONFIGS" ];then
+                    SNAPPER_CONFIGS="$i";else
+                    SNAPPER_CONFIGS="$SNAPPER_CONFIGS $i"
+                fi
             fi
-            SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
         done
+        printf "SNAPPER_CONFIGS=\"%s\"\n" "$SNAPPER_CONFIGS" >> "$VAR_FILE"
     fi
+
 fi
 
 until [ "$UN_CONF" = y ];do
@@ -178,6 +178,30 @@ until [ "$UN_CONF" = y ];do
         read UN_CONF
     done
 done
+
+until [ "$RPASSWD" = y ] || [ "$RPASSWD" = n ];do
+    printf "Set root password?\n[y/n]: "
+    read RPASSWD
+done
+if [ "$RPASSWD" = y ];then
+    while :;do
+        unset ROOT_PASSWORD ROOT_PASSWD_CONF
+    until [ -n "$ROOT_PASSWORD" ];do
+        printf "Password for root: "
+        read ROOT_PASSWORD
+    done
+    until [ -n "$ROOT_PASSWD_CONF" ];do
+        printf "Confirm Password for root: "
+        read ROOT_PASSWD_CONF
+    done
+    if [ "$ROOT_PASSWORD" = "$ROOT_PASSWD_CONF" ];then
+        printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
+        break;else
+        printf "PASSWORDS DID NOT MATCH!\n"
+        continue
+    fi
+done
+printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
 while :;do
     unset PASSWORD PASSWD_CONF
     until [ -n "$PASSWORD" ];do

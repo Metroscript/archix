@@ -52,7 +52,7 @@ if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
 fi
 
 #MOUNT ## NEEDS FIXING
-for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | grep $(printf "%s" "$INSTALL_DISK" | cut -d\  -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -cd '0-9 ');do
+for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | awk "!/part/" | grep $(printf "%s" "$INSTALL_DISK" | cut -d/ -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]");do
     if [ "$i" = 0 ];then
         NO_DISCARD=true
     fi

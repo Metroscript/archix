@@ -54,22 +54,7 @@ if [ "$INIT" = s6 ];then
 fi
 
 if [ "$VM" = true ];then
-    if [ "$ARTIX" != true ];then
-        systemctl start libvirtd.service virtlogd.socket
-    else
-        if [ "$INIT" = dinit ];then
-            dinitctl start libvirtd
-            dinitctl start virtlogd
-        elif [ "$INIT" = runit ];then
-            sv up libvirtd
-            sv up virtlogd
-        elif [ "$INIT" = openrc ];then
-            rc-service libvirtd start
-            rc-service virtlogd start
-        elif [ "$INIT" = s6 ];then
-            s6-rc -u change libvirtd
-            s6-rc -u change virtlogd
-        fi
-    fi
+    virtqemud &
+    virtnetworkd &
     virsh net-autostart default
 fi

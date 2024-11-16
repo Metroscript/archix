@@ -34,7 +34,15 @@ fi
 #Snapper Configs
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
-    sh "$HOME"/archix/Scripts/snapper.sh
+    SNAP_DIR_RM=$(printf "%s" "$SNAP_DIR_RM" | sed 's/^[ \t]*//')
+    if [ "$MAN_SNAP" = y ];then
+        for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
+            SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
+            cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
+            sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|' -e 's|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
+            sed -i '|SNAPPER_CONFIGS="|SNAPPER_CONFIGS="$SNAP_CONFIG "|' /etc/conf.d/snapper
+        done
+    fi
 fi
 
 #Set Timezone
@@ -50,6 +58,11 @@ hwclock --systohc
 
 #Hostname
 printf "%s" "$HN" > /etc/hostname
+
+#Root Password
+if [ -n "$ROOT_PASSWORD" ];then
+    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
+fi
 
 #User
 $INSTALL "$SHELL"
@@ -207,7 +220,7 @@ if ! [ -d /etc/sysctl.d ];then
 fi
 printf "#Hide kernel pointers\nkernel.kptr_restrict=2\n\n#Restrict access to kernel log\nkernel.dmesg_restrict=1\n\n#Restrict kernel log output during boot\nkernel.printk=3 3 3 3\n\n#Restrict BPF & enable JIT hardening\nkernel.unprivileged_bpf_disabled=1\nnet.core.bpf_jit_harden=2\n\n#Restrict loading of TTY line disciplines\ndev.tty.ldisc_autoload=0\n\n#Mitigate use-after-free flaws\nvm.unprivileged_userfaultfd=0\n\n#Prevent loading of another kernel during runtime\nkernel.kexec_load_disabled=1\n\n#Restrict SysRq access to only through use of the secure attention key (Set to '0' to disable SysRq)\nkernel.sysrq=4\n\n#Restrict use of kernel performance events\nkernel.perf_event_paranoid=3" > /etc/sysctl.d/99-kernel-security.conf
 printf "#Protect against SYN flood attacks\nnet.ipv4.tcp_syncookies=1\n\n#Drop RST packets in time-wait state\nnet.ipv4.tcp_rfc1337=1\n\n#IP source validation\nnet.ipv4.conf.all.rp_filter=1\nnet.ipv4.conf.default.rp_filter=1\n\n#Disable TCP timestamps\nnet.ipv4.tcp_timestamps=0\n\n#Prevent source routing\nnet.ipv4.conf.all.accept_source_route=0\nnet.ipv4.conf.default.accept_source_route=0\nnet.ipv6.conf.all.accept_source_route=0\nnet.ipv6.conf.default.accept_source_route=0\n\n#IPv6 privacy extentions\nnet.ipv6.conf.all.use_tempaddr = 2\nnet.ipv6.conf.default.use_tempaddr = 2" > /etc/sysctl.d/99-network.conf
-printf "#Increase ASLR bit entropy\nvm.mmap_rnd_bits=32\nvm.mmap_rnd_compat_bits=16\n\n#Allow sym/hardlinks to be created only when destination is not world-writable or shares the same owner of the source\nfs.protected_symlinks=1\nfs.protected_hardlinks=1\n\n#Prevents access to files in world-writable directories by those who are not the owner\nfs.protected_fifos=2\nfs.protected_regular=2" > /etc/sysctl.d/99-userspace.conf
+printf "#Increase ASLR bit entropy\nvm.mmap_rnd_bits=32\nvm.mmap_rnd_compat_bits=16\n\n#Allow sym/hardlinks to be created only when destination is not world-writable or shares the same owner of the source\nfs.protected_symlinks=1\nfs.protected_hardlinks=1\n\n#Prevents access to files in world-writable directories by those who are not the owner\nfs.protected_fifos=2\nfs.protected_regular=2\n#Limit ptrace to root or processes with CAP_SYS_PTRACE\nkernel.yama.ptrace_scope=2" > /etc/sysctl.d/99-userspace.conf
 printf "#Improve compatability by increasing memory map count\nvm.max_map_count=2147483642\nvm.swappiness=50" > /etc/sysctl.d/99-ram.conf
 if [ -f /etc/udev/rules.d/99-zram.rules ];then
     sed -i '/vm.swappiness/d' /etc/sysctl.d/99-ram.conf
