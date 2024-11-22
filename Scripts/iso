@@ -7,6 +7,23 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 #PARTITION DISKS
 umount -AR /mnt
 
+#Set optimal storage blocking
+if printf "%s" "$INSTALL_DISK" | grep -q "nvme";then
+    IN_USE_PERFORMANCE=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | grep "in use" | cut -d\  -f3)
+    if [ "$IN_USE_PERFORMANCE" != 0 ];then
+        LBA_LOOPS=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | wc -l)
+        for i in $(seq "$LBA_LOOPS");do
+            LBA=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | sed "${i}q;d")
+            if [ "$(printf "%s" "$LBA" | cut -d\  -f3)" -gt "$IN_USE_PERFORMANCE" ];then
+                continue;else
+                IN_USE_PERFORMANCE=$(printf "%s" "$LBA" | cut -d\  -f3)
+                SET_LBA=$(printf "%s" "$LBA" | cut -d\  -f1)
+            fi
+        done
+        nvme format --lbaf="$SET_LBA" "$INSTALL_DISK"
+    fi
+fi
+
 wipefs -af "$INSTALL_DISK"
 
 #Create GPT table and BIOS/UEFI partition
@@ -15,7 +32,7 @@ if [ "$EFI" = true ];then
     printf "g\nn\n\n\n+1M\nt\n\nBIOS boot\nw" | fdisk -W always "$INSTALL_DISK"
 fi
 if [ "$PART_BOOT" = true ];then
-    printf "n\n\n\n+1G\nt\n\nLinux Filesystem\nw" | fdisk -W always "$INSTALL_DISK"
+    printf "n\n\n\n+1G\nt\n\nLinux extended boot\nw" | fdisk -W always "$INSTALL_DISK"
 fi
 printf "n\n\n\n\n\nt\n\nLinux Filesystem\nw" | fdisk -W always "$INSTALL_DISK"
 
@@ -51,7 +68,7 @@ if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
     umount /mnt
 fi
 
-#MOUNT ## NEEDS FIXING
+#MOUNT
 for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | awk "!/part/" | grep $(printf "%s" "$INSTALL_DISK" | cut -d/ -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]");do
     if [ "$i" = 0 ];then
         NO_DISCARD=true
@@ -78,14 +95,14 @@ if [ "$FS" = btrfs ];then
 fi
 
 if [ "$PART_BOOT" = true ];then
-    mount --mkdir -o noatime "$BOOT_PART" /mnt/boot
+    mount --mkdir -o noatime,nodev,noexec,nosuid "$BOOT_PART" /mnt/boot
 fi
 
 if [ "$EFI" = true ];then
-    mount --mkdir -o noatime "$EFI_BIOS_PART" /mnt/efi
+    mount --mkdir -o noatime,nodev,noexec,nosuid "$EFI_BIOS_PART" /mnt/efi
 fi
 
-#Install Base root!
+#Install Base root
 if [ "$ARTIX" = true ];then
     basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" dnsmasq wget btrfs-progs git grub
     if [ "$EFI" = true ];then

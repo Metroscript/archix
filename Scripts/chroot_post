@@ -7,6 +7,29 @@ if [ "$DOAS" = true ];then
     sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
 fi
 
+#Allows freshclam to work (may only be needed for systemd)
+touch /var/log/clamav/freshclam.log
+chmod 0640 /var/log/clamav/freshclam.log
+
+#Hardened /tmp
+if [ "$ARTIX" = y ] && [ "$INIT" = dinit ];then
+    cp /usr/lib/dinit.d/tmpfs /etc/dinit.d
+    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,noexec,nosuid|' /etc/dinit.d/tmpfs;else
+    printf "tmpfs /tmp tmpfs defaults,nodev,noexec,nosuid 0 0\n" >> /etc/fstab
+fi
+
+#Firewall settings
+ufw status
+ufw enable
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow http
+ufw allow https
+ufw allow dns
+ufw allow mdns
+ufw allow 631
+ufw allow qbittorrent
+
 #Services
 # Regenerate the initramfs and grub config in case they've been updated
 mkinitcpio -P
