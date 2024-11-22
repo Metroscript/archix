@@ -34,15 +34,16 @@ fi
 #Snapper Configs
 if [ "$FS" = btrfs ];then
     sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
-if [ "$SNAPPER" = true ];then
-    $INSTALL snapper
-    for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
-        SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
-        btrfs subvolume create "$SNAP_PATH"/.snapshots
-        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
-        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
-    done
-    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
+    if [ "$SNAPPER" = true ];then
+        $INSTALL snapper
+        for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
+            SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
+            btrfs subvolume create "$SNAP_PATH"/.snapshots
+            cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
+            sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
+        done
+        sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
+    fi
 fi
 
 #Set Timezone
@@ -172,10 +173,11 @@ fi
 $INSTALL plasma-meta cryfs flatpak-kcm fwupd packagekit-qt6 xdg-desktop-portal-{kde,gtk} gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-{inotify-survey,cli-tools},graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5 plymouth-kcm
 
 #Zram & Swap
-if [ "$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)" -ge 8000000 ];then
+RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
+if [ "$RAM" -ge 8000000 ];then
     printf "zram" > /etc/modules-load.d/zram.conf
     printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
-    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$(($(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)/2))" > /etc/udev/rules.d/99-zram.rules
+    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$(($RAM/2))" > /etc/udev/rules.d/99-zram.rules
     sed -i 's;quiet;zswap.enabled=0 quiet;' "$GRUB_DIR"
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else
