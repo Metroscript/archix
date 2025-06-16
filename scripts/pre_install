@@ -1,8 +1,11 @@
 #!/bin/sh
-VAR_FILE="$HOME"/archix/Scripts/vars
+REPO="$HOME"/archix
+VAR_FILE="$REPO"/scripts/vars
 if ! [ -f "$VAR_FILE" ];then
     touch "$VAR_FILE"
 fi
+
+printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
 if grep -qi "Artix" /etc/os-release;then
     ARTIX=true
@@ -59,20 +62,30 @@ if grep -q 0 /sys/block/$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)/queue/rotat
 fi
 printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
 
-until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = y ];do
-    printf "Allocate a separate disk partition for /boot?\n[y/n]: "
-    read PART_BOOT
+until [ "$LUKS" = y ] || [ "$LUKS" = n ];do
+    printf "Encrypt root with LUKS?\n[y/n]: "
+    read LUKS
 done
-if [ "$PART_BOOT" = y ];then
-    until [ "$BOOT_FS" = 1 ] || [ "$BOOT_FS" = 2 ];do
-        printf "Select filesystem for /boot: 1.EXT4 2.BTRFS\n[1,2]: "
-        read BOOT_FS
-    done
-    if [ "$BOOT_FS" = 1 ];then
-        BOOT_FS=ext4;else
-        BOOT_FS=btrfs
-    fi
-    printf "PART_BOOT=true\nBOOT_FS=%s\n" "$BOOT_FS" >> "$VAR_FILE"
+if [ "$LUKS" = y ];then
+    printf "LUKS=true\n" >> "$VAR_FILE"
+    while :;do
+        unset LUKS_PASSWORD LUKS_PASSWD_CONF
+        until [ -n "$LUKS_PASSWORD" ];do
+            printf "Encryption password: "
+            read LUKS_PASSWORD
+        done
+        until [ -n "$LUKS_PASSWD_CONF" ];do
+            printf "Confirm encryption password: "
+            read LUKS_PASSWD_CONF
+        done
+        if [ "$LUKS_PASSWORD" = "$LUKS_PASSWD_CONF" ];then
+            printf "LUKS_PASSWORD=\"%s\"\n" "$LUKS_PASSWORD" >> "$VAR_FILE"
+            break;else
+            printf "PASSWORDS DID NOT MATCH!\n"
+            continue
+        fi
+    done;else
+    printf "LUKS=false\n" >> "$VAR_FILE"
 fi
 
 until [ "$FS" = 1 ] || [ "$FS" = 2 ];do
@@ -169,6 +182,26 @@ if [ -n "$SUBVOLS" ];then
 
 fi
 
+if [ "$LUKS" != y ];then
+    until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = y ];do
+        printf "Allocate a separate disk partition for /boot?\n[y/n]: "
+        read PART_BOOT
+    done
+else
+    PART_BOOT=y
+fi
+if [ "$PART_BOOT" = y ];then
+    until [ "$BOOT_FS" = 1 ] || [ "$BOOT_FS" = 2 ];do
+        printf "Select filesystem for /boot: 1.EXT4 2.BTRFS\n[1,2]: "
+        read BOOT_FS
+    done
+    if [ "$BOOT_FS" = 1 ];then
+        BOOT_FS=ext4;else
+        BOOT_FS=btrfs
+    fi
+    printf "PART_BOOT=true\nBOOT_FS=%s\n" "$BOOT_FS" >> "$VAR_FILE"
+fi
+
 until [ "$UN_CONF" = y ];do
     unset UN_CONF USERNAME
     until [ -n "$USERNAME" ];do
@@ -224,15 +257,13 @@ while :;do
 done
 printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
 
-until [ "$SHELL" = 1 ] || [ "$SHELL" = 2 ] || [ "$SHELL" = 3 ];do
-    printf "Set shell for user: \"%s\". 1.bash 2.fish 3.dash\n[1/2/3]: " "$USERNAME"
+until [ "$SHELL" = 1 ] || [ "$SHELL" = 2 ];do
+    printf "Set shell for user: \"%s\". 1.bash 2.fish\n[1/2]: " "$USERNAME"
     read SHELL
 done
 if [ "$SHELL" = 1 ];then
-    SHELL=bash
-elif [ "$SHELL" = 2 ];then
-    SHELL=fish;else
-    SHELL=dash
+    SHELL=bash;else
+    SHELL=fish
 fi
 printf "SHELL=%s\n" "$SHELL" >> "$VAR_FILE"
 

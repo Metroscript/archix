@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$HOME"/archix/Scripts/vars
+. "$HOME"/archix/scripts/vars
 
 cd "$HOME"
 
@@ -22,13 +22,16 @@ if [ "$DOAS" = true ];then
     sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
 fi
 
-if [ "$ARTIX" != true ];then
-    paru -S --needed --noconfirm librewolf-bin;else
-    if [ "$DOAS" = true ];then
-    doas pacman -S --needed --noconfirm librewolf;else
-    sudo pacman -S --needed --noconfirm librewolf
-    fi
-fi
+#if [ "$ARTIX" != true ];then
+#    paru -S --needed --noconfirm librewolf-bin;else
+#    if [ "$DOAS" = true ];then
+#        doas pacman -S --needed --noconfirm librewolf;else
+#        sudo pacman -S --needed --noconfirm librewolf
+#    fi
+#fi
+
+flatpak install flathub io.gitlab.librewolf-community
+
 
 #KDE Startup files
 if ! [ -d "$HOME"/.config/autostart ];then

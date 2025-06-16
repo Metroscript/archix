@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$HOME"/archix/Scripts/vars
+. "$HOME"/archix/scripts/vars
 
 INSTALL="pacman -S --needed --noconfirm"
 
@@ -11,6 +11,16 @@ if [ "$ARTIX" = true ];then
    pacman -Syu --needed --noconfirm artix-archlinux-support
    sed -i -e "/\[lib32\]/,/Include/"'s/^#//' -i -e "/\[extra\]/,/Include/"'s/^#//' /etc/pacman.conf
    pacman-key --populate
+fi
+
+#Sort Mirrors
+pacman -Syu --noconfirm reflector
+if [ "$ARTIX" = true ];then
+    sed '/http:/d' /etc/pacman.d/mirrorlist.pacnew | rankmirrors -vwn 5 - > /etc/pacman.d/mirrorlist #Rank HTTPS mirrors without modifying mirrorlist.pacnew
+    mv /etc/pacman.d/mirrorlist-arch /etc/pacman.d/mirrorlist-arch.bak
+    reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist-arch;else
+    mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+    reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist
 fi
 
 #Update to get repos
@@ -31,7 +41,7 @@ if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
 fi
 
-#Snapper Configs
+#Snapper Configs & mkinitcpio module
 if [ "$FS" = btrfs ];then
     sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
     if [ "$SNAPPER" = true ];then
@@ -53,7 +63,10 @@ wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/mai
 ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 hwclock --systohc
 
-#Set Language Local
+#Set Language Locale (Needs work)
+sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
+printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
+locale-gen
 
 #####
 
@@ -79,9 +92,13 @@ if [ "$DOAS" = true ];then
 fi
 
 #GRUB
-chmod 0700 /boot
 GRUB_DIR=/etc/default/grub
 sed -i -e 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=3/' -i -e 's/loglevel=./loglevel=0/' "$GRUB_DIR"
+if [ "$LUKS" = true ];then
+    ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/root)
+    sed -i "s/quiet/cryptdevice=UUID=${ROOT_UUID}:root root=UUID=${ROOT_UUID} quiet" /etc/default/grub
+    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+fi
 if [ "$EFI" = true ];then
     grub-install --efi-directory=/efi --bootloader-id=GRUB
     sed -i 's/quiet/efi=disable_early_pci_dma quiet/' "$GRUB_DIR";else
@@ -124,14 +141,15 @@ fi
 #Pipewire
 $INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
 
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} p7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl earlyoom clamav plymouth apparmor audit python-{notify2,psutil} alacritty neovim
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl earlyoom clamav plymouth apparmor audit python-{notify2,psutil} alacritty neovim
 
 if [ "$LAPTOP" = true ];then
     $INSTALL tlp
 fi
 
 if [ "$STEAM" = true ];then
-    $INSTALL steam
+    $INSTALL steam gamemode lib32-gamemode
+    gpasswd -a "$USERNAME" gamemode
 fi
 #Virtual Machine
 if [ "$VM" = true ];then
@@ -177,7 +195,7 @@ RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
 if [ "$RAM" -ge 8000000 ];then
     printf "zram" > /etc/modules-load.d/zram.conf
     printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
-    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$(($RAM/2))" > /etc/udev/rules.d/99-zram.rules
+    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$((RAM/2))" > /etc/udev/rules.d/99-zram.rules
     sed -i 's;quiet;zswap.enabled=0 quiet;' "$GRUB_DIR"
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else

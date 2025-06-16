@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$HOME"/archix/Scripts/vars
+. "$HOME"/archix/scripts/vars
 
 #Speed up install
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
@@ -8,21 +8,21 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 umount -AR /mnt
 
 #Set optimal storage blocking
-if printf "%s" "$INSTALL_DISK" | grep -q "nvme";then
-    IN_USE_PERFORMANCE=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | grep "in use" | cut -d\  -f3)
-    if [ "$IN_USE_PERFORMANCE" != 0 ];then
-        LBA_LOOPS=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | wc -l)
-        for i in $(seq "$LBA_LOOPS");do
-            LBA=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | sed "${i}q;d")
-            if [ "$(printf "%s" "$LBA" | cut -d\  -f3)" -gt "$IN_USE_PERFORMANCE" ];then
-                continue;else
-                IN_USE_PERFORMANCE=$(printf "%s" "$LBA" | cut -d\  -f3)
-                SET_LBA=$(printf "%s" "$LBA" | cut -d\  -f1)
-            fi
-        done
-        nvme format --lbaf="$SET_LBA" "$INSTALL_DISK"
-    fi
-fi
+#if printf "%s" "$INSTALL_DISK" | grep -q "nvme";then
+#    IN_USE_PERFORMANCE=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | grep "in use" | cut -d\  -f3)
+#    if [ "$IN_USE_PERFORMANCE" != 0 ];then
+#        LBA_LOOPS=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | wc -l)
+#        for i in $(seq "$LBA_LOOPS");do
+#            LBA=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | sed "${i}q;d")
+#            if [ "$(printf "%s" "$LBA" | cut -d\  -f3)" -gt "$IN_USE_PERFORMANCE" ];then
+#                continue;else
+#                IN_USE_PERFORMANCE=$(printf "%s" "$LBA" | cut -d\  -f3)
+#                SET_LBA=$(printf "%s" "$LBA" | cut -d\  -f1)
+#            fi
+#        done
+#        nvme format --lbaf="$SET_LBA" "$INSTALL_DISK"
+#    fi
+#fi
 
 wipefs -af "$INSTALL_DISK"
 
@@ -54,6 +54,11 @@ fi
 if [ "$PART_BOOT" = true ];then
     mkfs."$BOOT_FS" -L Boot "$BOOT_PART"
 fi
+if [ "$LUKS" = true ];then
+    printf "%s" "$LUKS_PASSWORD" | cryptsetup -y -v luksFormat "$ROOT_PART" -
+   printf "%s" "$LUKS_PASSWORD" | cryptsetup luksOpen "$ROOT_PART" root -
+   ROOT_PART=/dev/mapper/root
+fi
 if [ "$FS" = ext4 ];then
     mkfs.ext4 -L Root "$ROOT_PART";else
     mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
@@ -70,7 +75,7 @@ fi
 
 #MOUNT
 for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | awk "!/part/" | grep $(printf "%s" "$INSTALL_DISK" | cut -d/ -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]");do
-    if [ "$i" = 0 ];then
+    if [ "$i" = 0 ] || [ "$LUKS" = true ];then #Disable on LUKS for security
         NO_DISCARD=true
     fi
 done

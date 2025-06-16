@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$HOME"/archix/Scripts/vars
+. "$HOME"/archix/scripts/vars
 
 #password :wheel perms
 if [ "$DOAS" = true ];then
@@ -12,7 +12,7 @@ touch /var/log/clamav/freshclam.log
 chmod 0640 /var/log/clamav/freshclam.log
 
 #Hardened /tmp
-if [ "$ARTIX" = y ] && [ "$INIT" = dinit ];then
+if [ "$ARTIX" = true ] && [ "$INIT" = dinit ];then
     cp /usr/lib/dinit.d/tmpfs /etc/dinit.d
     sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,noexec,nosuid|' /etc/dinit.d/tmpfs;else
     printf "tmpfs /tmp tmpfs defaults,nodev,noexec,nosuid 0 0\n" >> /etc/fstab
@@ -30,12 +30,11 @@ ufw allow mdns
 ufw allow 631
 ufw allow qbittorrent
 
-#Services
 # Regenerate the initramfs and grub config in case they've been updated
 mkinitcpio -P
 grub-mkconfig -o /boot/grub/grub.cfg
 
-#Enable init services
+#Init Services
 if [ "$VM" = true ];then
     QEMU=" libvirtd virtlogd"
 fi
