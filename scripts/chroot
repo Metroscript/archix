@@ -59,7 +59,7 @@ fi
 #Set Timezone
 $INSTALL chrony
 mv /etc/chrony.conf /etc/chrony.conf.bak
-wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
+wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/etc/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
 ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 hwclock --systohc
 
@@ -161,8 +161,6 @@ if pacman -Q linux-hardened;then
    pacman -Syu --needed --noconfirm flatpak bubblewrap-suid;else
    pacman -Syu --needed --noconfirm flatpak bubblewrap
 fi
-
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
 #Artix services
 if [ "$ARTIX" = true ];then

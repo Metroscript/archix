@@ -63,7 +63,7 @@ fi
 printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
 
 until [ "$LUKS" = y ] || [ "$LUKS" = n ];do
-    printf "Encrypt root with LUKS?\n[y/n]: "
+    printf "Encrypt root with LUKS (Experimental)?\n[y/n]: "
     read LUKS
 done
 if [ "$LUKS" = y ];then
