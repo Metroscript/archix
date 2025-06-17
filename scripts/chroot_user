@@ -10,9 +10,9 @@ fi
 
 #Paru
 if [ "$PABIN" = true ];
-    PARU = "paru-bin"
+    PARU="paru-bin"
 else
-    PARU = "paru"
+    PARU="paru"
 fi
 
 git clone https://aur.archlinux.org/"$PARU".git
