@@ -36,10 +36,6 @@ fi
 #    fi
 #fi
 
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-flatpak install -y flathub io.gitlab.librewolf-community
-
 #KDE Startup files
 if ! [ -d "$HOME"/.config/autostart ];then
     mkdir "$HOME"/.config/autostart
