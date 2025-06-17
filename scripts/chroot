@@ -162,6 +162,10 @@ if pacman -Q linux-hardened;then
    pacman -Syu --needed --noconfirm flatpak bubblewrap
 fi
 
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+flatpak install -y flathub io.gitlab.librewolf-community
+
 #Artix services
 if [ "$ARTIX" = true ];then
     $INSTALL {sddm,cups,chrony,ufw,earlyoom,clamav,apparmor,audit}-"$INIT" "$INIT"-system
