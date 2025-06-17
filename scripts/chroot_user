@@ -10,8 +10,7 @@ fi
 
 #Paru
 if [ "$PABIN" = true ];
-    PARU="paru-bin"
-else
+    PARU="paru-bin";else
     PARU="paru"
 fi
 
