@@ -9,7 +9,7 @@ if ! [ -d "$HOME"/.config ];then
 fi
 
 #Paru
-if [ "$PABIN" = true ];
+if [ "$PABIN" = true ];then
     PARU="paru-bin";else
     PARU="paru"
 fi
