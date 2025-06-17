@@ -183,7 +183,7 @@ if [ -n "$SUBVOLS" ];then
 fi
 
 if [ "$LUKS" != y ];then
-    until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = y ];do
+    until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = n ];do
         printf "Allocate a separate disk partition for /boot?\n[y/n]: "
         read PART_BOOT
     done
@@ -256,6 +256,16 @@ while :;do
     fi
 done
 printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+
+until [ "$PABIN" = y ] || [ "$PABIN" = n ];do
+    printf "Install paru as a binary rather than compiling? (Faster install)\n[y/n]: "
+    read PABIN
+done
+if [ "$PABIN" = y ];then
+    PABIN=true;else
+    PABIN=false
+fi
+printf "PABIN=%s\n" "$PABIN" >> "$VAR_FILE"
 
 until [ "$SHELL" = 1 ] || [ "$SHELL" = 2 ];do
     printf "Set shell for user: \"%s\". 1.bash 2.fish\n[1/2]: " "$USERNAME"
