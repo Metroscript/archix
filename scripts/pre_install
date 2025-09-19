@@ -103,7 +103,7 @@ if [ "$FS" = btrfs ];then
         done
         if [ "$REC_VOLS" = y ];then
             SUBVOLS="@ @home @var_cache @var_log @var_tmp @var_libvirt_images"
-            SUBVOL_PATHS="/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images"
+            SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/tmp /mnt/var/lib/libvirt/images"
         elif [ "$REC_VOLS" = n ];then
             until [ "$NEW_SUBVOL" = n ];do
                 unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
