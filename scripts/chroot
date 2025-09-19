@@ -107,7 +107,7 @@ else
     printf "root=UUID=%s rootflags=subvolid=%s rw" "$ROOT_UUID" "$(btrfs inspect-internal rootid /)" > /etc/cmdline.d/root.conf
 fi
 UCODE=$(pacman -Qs ucode | grep ucode | cut -d/ -f2 | cut -d\  -f1 | cut -d- -f1)
-printf "%_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$UCODE" > /etc/cmdline.d/security.conf
+printf "%s_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$UCODE" > /etc/cmdline.d/security.conf
 printf "nowatchdog" > /etc/cmdline.d/nowatchdog.conf
 printf "zswap.enabled=0" > /etc/cmdline.d/disable_zswap.conf
 printf "quiet splash" > /etc/cmdline.d/splash.conf

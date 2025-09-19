@@ -63,10 +63,11 @@ if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
     mount -o noatime,compress-force=zstd:1,space_cache=v2 "$ROOT_PART" /mnt
     for i in $SUBVOLS;do
         btrfs subvolume create /mnt/"$i"
+        CURRENT_ID=$(btrfs inspect-internal rootid /mnt/"$i")
         if [ -z "$IDS" ];then
-            IDS=$(btrfs inspect-internal rootid /mnt/"$i")
+            IDS="$CURRENT_ID"
         else
-            IDS="${IDS} $(btrfs inspect-internal rootid /mnt/$i)"
+            IDS="$IDS $CURRENT_ID"
         fi
     done
     umount /mnt
