@@ -373,8 +373,8 @@ done
 if [ "$VM" = y ];then
     printf "VM=true\n" >> "$VAR_FILE";else
     printf "VM=false\n" >> "$VAR_FILE"
-    sed -i "s/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp @var_libvirt_images\"/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp\"/"
-    sed -i "s,SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images\",SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp\","
+    sed -i "s/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp @var_libvirt_images\"/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp\"/" "$VAR_FILE"
+    sed -i "s,SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images\",SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp\"," "$VAR_FILE"
 fi
 
 until [ "$STEAM" = y ] || [ "$STEAM" = n ];do

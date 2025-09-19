@@ -27,7 +27,7 @@ umount -AR /mnt
 wipefs -af "$INSTALL_DISK"
 
 #Create GPT table and BIOS/UEFI partition
-printf "g\nn\n\n\n+1G\nt\n\nEFI System\nw" | fdisk -W always
+printf "g\nn\n\n\n+1G\nt\n\nEFI System\nw" | fdisk -W always "$INSTALL_DISK"
 printf "n\n\n\n\n\nt\n\nLinux Filesystem\nw" | fdisk -W always "$INSTALL_DISK"
 
 if printf "%s" "$INSTALL_DISK" | grep -q nvme;then
