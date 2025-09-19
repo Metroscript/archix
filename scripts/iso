@@ -54,6 +54,7 @@ if [ "$FS" = ext4 ];then
 fi
 
 #Get UUIDS
+sleep 10
 if [ "$LUKS" = true ];then
     ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
     CRYPT_PART_UUID=$(lsblk -oUUID "$CRYPT_ROOT_PART" | sed '/UUID/d' | sed "/$ROOT_UUID/d")
