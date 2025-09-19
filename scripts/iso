@@ -111,8 +111,8 @@ mount --mkdir -o noatime,nodev,noexec,nosuid "$ESP_PART" /mnt/efi
 
 #Install Base root
 if [ "$ARTIX" = true ];then
-    basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" dnsmasq wget btrfs-progs git efibootmgr
+    basestrap /mnt base "$INIT"-system $KERNELS $HEADERS linux-firmware networkmanager-"$INIT" wget btrfs-progs git efibootmgr
     fstabgen -U /mnt >> /mnt/etc/fstab;else
-    pacstrap -K /mnt base $KERNELS $HEADERS linux-firmware networkmanager dnsmasq wget btrfs-progs git efibootmgr
+    pacstrap -K /mnt base $KERNELS $HEADERS linux-firmware networkmanager wget btrfs-progs git efibootmgr
     genfstab -U /mnt >> /mnt/etc/fstab
 fi

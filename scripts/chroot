@@ -18,9 +18,20 @@ pacman -Syu --noconfirm reflector
 if [ "$ARTIX" = true ];then
     sed '/http:/d' /etc/pacman.d/mirrorlist.pacnew | rankmirrors -vwn 5 - > /etc/pacman.d/mirrorlist #Rank HTTPS mirrors without modifying mirrorlist.pacnew
     mv /etc/pacman.d/mirrorlist-arch /etc/pacman.d/mirrorlist-arch.bak
-    reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist-arch;else
+    reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist-arch
+    if ! [ -e /etc/pacman.d/mirrorlist-arch ];then
+        mv /etc/pacman.d/mirrorlist-arch.bak /etc/pacman.d/mirrorlist-arch
+        printf "\nTHERE WAS AN ERROR WITH REFLECTOR MIRRORLIST GENERATION. PLEASE SORT MIRRORLIST MANUALLY AFTER INSTALL.\n"
+        sleep 5
+    fi
+else
     mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
     reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist
+    if ! [ -e /etc/pacman.d/mirrorlist-arch ];then
+        mv /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+        printf "\nTHERE WAS AN ERROR WITH REFLECTOR MIRRORLIST GENERATION. PLEASE SORT MIRRORLIST MANUALLY AFTER INSTALL.\n"
+        sleep 5
+    fi
 fi
 
 #Update to get repos
@@ -114,7 +125,7 @@ printf "quiet splash" > /etc/cmdline.d/splash.conf
 mkdir -p /efi/EFI/Linux
 
 for i in $KERNELS;do
-    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/fallback_image/#fallback_image/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options=/default_options' -i -e 's/fallback_image/#fallback_image/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
     mkinitcpio -p "$i"
     NAME=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
     if [ "$NAME" = "Linux" ];then

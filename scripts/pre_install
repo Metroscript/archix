@@ -98,7 +98,7 @@ if [ "$FS" = btrfs ];then
     VOL_CREATE=y
     if [ "$VOL_CREATE" = y ];then
         until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
-            printf "Use premate subvolume layout? [y/n]: "
+            printf "Use premade subvolume layout? [y/n]: "
             read REC_VOLS
         done
         if [ "$REC_VOLS" = y ];then
