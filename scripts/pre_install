@@ -12,10 +12,6 @@ if grep -qi "Artix" /etc/os-release;then
     printf "ARTIX=true\n" >> "$VAR_FILE" 
 fi
 
-if [ -d /sys/firmware/efi/efivars ];then
-    EFI=true
-    printf "EFI=true\n" >> "$VAR_FILE"
-fi
 CHASSIS=$(cat /sys/class/dmi/id/chassis_type)
 if [ "$CHASSIS" = 9 ] || [ "$CHASSIS" = 10 ];then
     LAPTOP=true
@@ -88,66 +84,71 @@ if [ "$LUKS" = y ];then
     printf "LUKS=false\n" >> "$VAR_FILE"
 fi
 
-until [ "$FS" = 1 ] || [ "$FS" = 2 ];do
-    printf "Select a filesystem for root: 1.EXT4 2.BTRFS\n[1,2]: "
-    read FS
-done
-if [ "$FS" = 1 ];then
-    FS=ext4;else
-    FS=btrfs
-fi
+#until [ "$FS" = 1 ] || [ "$FS" = 2 ];do
+#    printf "Select a filesystem for root: 1.EXT4 2.BTRFS\n[1,2]: "
+#    read FS
+#done
+#if [ "$FS" = 1 ];then
+#    FS=ext4;else
+FS=btrfs
+#fi
 printf "FS=%s\n" "$FS" >> "$VAR_FILE"
 
 if [ "$FS" = btrfs ];then
-    until [ "$VOL_CREATE" = y ] || [ "$VOL_CREATE" = n ];do
-        printf "Create BTRFS subvolumes?\n[y/n]: "
-        read VOL_CREATE
-    done
     if [ "$VOL_CREATE" = y ];then
-        until [ "$NEW_SUBVOL" = n ];do
-            unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
-            until [ -n "$SUBVOL_NAME" ];do
-                printf "Name of subvolume: "
-                read SUBVOL_NAME
-            done
-            for i in $SUBVOLS;do
-                if [ "$SUBVOL_NAME" = "$i" ];then
-                    printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
-                    continue 2
-                fi
-            done
-            until [ -n "$SUBVOL_PATH" ];do
-                printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
-                read SUBVOL_PATH
-            done
-            for i in $SUBVOL_PATHS;do
-                if [ "$SUBVOL_PATH" = "$i" ];then
-                    printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
-                    continue 2
-                fi
-            done
-            until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
-                printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
-                read SUBVOL_CONF
-            done
-            if [ "$SUBVOL_CONF" = y ];then
-                if [ -z "$SUBVOLS" ];then
-                    SUBVOLS="$SUBVOL_NAME";else
-                    SUBVOLS="$SUBVOLS $SUBVOL_NAME"
-                fi
-                if [ -z "$SUBVOL_PATHS" ];then
-                    SUBVOL_PATHS="$SUBVOL_PATH";else
-                    SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
-                fi
-                until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
-                    printf "Create another subvolume?\n[y/n]: "
-                    read NEW_SUBVOL
-                done
-                if [ "$NEW_SUBVOL" = y ];then
-                    continue
-                fi
-            fi
+        until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
+            printf "Use premate subvolume layout? [y/n]: "
+            read REC_VOLS
         done
+        if [ "$REC_VOLS" = y ];then
+            SUBVOLS="@ @home @var_cache @var_log @var_tmp @var_libvirt_images"
+            SUBVOL_PATHS="/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images"
+        elif [ "$REC_VOLS" = n ];then
+            until [ "$NEW_SUBVOL" = n ];do
+                unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
+                until [ -n "$SUBVOL_NAME" ];do
+                    printf "Name of subvolume: "
+                    read SUBVOL_NAME
+                done
+                for i in $SUBVOLS;do
+                    if [ "$SUBVOL_NAME" = "$i" ];then
+                        printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
+                        continue 2
+                    fi
+                done
+                until [ -n "$SUBVOL_PATH" ];do
+                    printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
+                    read SUBVOL_PATH
+                done
+                for i in $SUBVOL_PATHS;do
+                    if [ "$SUBVOL_PATH" = "$i" ];then
+                        printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
+                    continue 2
+                    fi
+                done
+                until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
+                    printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
+                    read SUBVOL_CONF
+                done
+                if [ "$SUBVOL_CONF" = y ];then
+                    if [ -z "$SUBVOLS" ];then
+                        SUBVOLS="$SUBVOL_NAME";else
+                        SUBVOLS="$SUBVOLS $SUBVOL_NAME"
+                    fi
+                    if [ -z "$SUBVOL_PATHS" ];then
+                        SUBVOL_PATHS="$SUBVOL_PATH";else
+                        SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
+                    fi
+                    until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
+                        printf "Create another subvolume?\n[y/n]: "
+                        read NEW_SUBVOL
+                    done
+                    if [ "$NEW_SUBVOL" = y ];then
+                        continue
+                    fi
+                fi
+            done
+        fi
         printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
     fi
 fi
@@ -180,26 +181,6 @@ if [ -n "$SUBVOLS" ];then
         printf "SNAPPER_CONFIGS=\"%s\"\n" "$SNAPPER_CONFIGS" >> "$VAR_FILE"
     fi
 
-fi
-
-if [ "$LUKS" != y ];then
-    until [ "$PART_BOOT" = y ] || [ "$PART_BOOT" = y ];do
-        printf "Allocate a separate disk partition for /boot?\n[y/n]: "
-        read PART_BOOT
-    done
-else
-    PART_BOOT=y
-fi
-if [ "$PART_BOOT" = y ];then
-    until [ "$BOOT_FS" = 1 ] || [ "$BOOT_FS" = 2 ];do
-        printf "Select filesystem for /boot: 1.EXT4 2.BTRFS\n[1,2]: "
-        read BOOT_FS
-    done
-    if [ "$BOOT_FS" = 1 ];then
-        BOOT_FS=ext4;else
-        BOOT_FS=btrfs
-    fi
-    printf "PART_BOOT=true\nBOOT_FS=%s\n" "$BOOT_FS" >> "$VAR_FILE"
 fi
 
 until [ "$UN_CONF" = y ];do
@@ -353,17 +334,17 @@ for i in $KERNELS;do
 done
 printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 
-until [ "$LOCKDOWN" = 0 ] || [ "$LOCKDOWN" = 1 ] || [ "$LOCKDOWN" = 2 ];do
-    printf "nable Kernel lockdown to prevent modification of kernel during runtime? (Prevents non-signed kernel modules from loading)\n0.No (Default) 1.Integrity (Standard Lockdown) 2.Confidential (Changes how RAM is accessed; Can cause issues)\n[0,1,2]: "
-    read LOCKDOWN
-done
-if [ "$LOCKDOWN" -gt 0 ];then
-    if [ "$LOCKDOWN" = 1 ];then
-        LOCKDOWN=integrity;else
-        LOCKDOWN=confidential
-    fi
-fi
-printf "LOCKDOWN=%s\n" "$LOCKDOWN" >> "$VAR_FILE"
+#until [ "$LOCKDOWN" = 0 ] || [ "$LOCKDOWN" = 1 ] || [ "$LOCKDOWN" = 2 ];do
+#    printf "nable Kernel lockdown to prevent modification of kernel during runtime? (Prevents non-signed kernel modules from loading)\n0.No (Default) 1.Integrity (Standard Lockdown) 2.Confidential (Changes how RAM is accessed; Can cause issues)\n[0,1,2]: "
+#    read LOCKDOWN
+#done
+#if [ "$LOCKDOWN" -gt 0 ];then
+#    if [ "$LOCKDOWN" = 1 ];then
+#        LOCKDOWN=integrity;else
+#        LOCKDOWN=confidential
+#    fi
+#fi
+#printf "LOCKDOWN=%s\n" "$LOCKDOWN" >> "$VAR_FILE"
 
 until [ "$CRON" = 1 ] || [ "$CRON" = 2 ];do
     printf "Install 1.Cronie or 2.Fcron for cron daemon?\n[1,2]: "
@@ -382,6 +363,8 @@ done
 if [ "$VM" = y ];then
     printf "VM=true\n" >> "$VAR_FILE";else
     printf "VM=false\n" >> "$VAR_FILE"
+    sed -i "s/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp @var_libvirt_images\"/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp\"/"
+    sed -i "s,SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images\",SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp\","
 fi
 
 until [ "$STEAM" = y ] || [ "$STEAM" = n ];do

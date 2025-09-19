@@ -9,30 +9,32 @@ fi
 
 #Allows freshclam to work (may only be needed for systemd)
 touch /var/log/clamav/freshclam.log
-chmod 0640 /var/log/clamav/freshclam.log
+chmod 600 /var/log/clamav/freshclam.log
+chown clamav /var/log/clamav/freshclam.log
+freshclam
 
 #Hardened /tmp
 if [ "$ARTIX" = true ] && [ "$INIT" = dinit ];then
     cp /usr/lib/dinit.d/tmpfs /etc/dinit.d
-    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,noexec,nosuid|' /etc/dinit.d/tmpfs;else
-    printf "tmpfs /tmp tmpfs defaults,nodev,noexec,nosuid 0 0\n" >> /etc/fstab
+    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,nosuid|' /etc/dinit.d/tmpfs;else
+    printf "tmpfs /tmp tmpfs defaults,nodev,nosuid 0 0\n" >> /etc/fstab
 fi
 
 #Firewall settings
-ufw status
+#ufw status
 ufw enable
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow http
-ufw allow https
-ufw allow dns
-ufw allow mdns
-ufw allow 631
-ufw allow qbittorrent
+#ufw allow http
+#ufw allow https
+#ufw allow dns
+#ufw allow mdns
+#ufw allow 631
+#ufw allow qbittorrent
 
 # Regenerate the initramfs and grub config in case they've been updated
 mkinitcpio -P
-grub-mkconfig -o /boot/grub/grub.cfg
+#grub-mkconfig -o /boot/grub/grub.cfg
 
 #Init Services
 if [ "$VM" = true ];then
@@ -45,10 +47,10 @@ fi
 SERVICES="NetworkManager ufw chronyd sddm $CRON earlyoom apparmor auditd$QEMU$TLP"
 
 if [ "$ARTIX" != true ];then
-    SERVICES="cups clamav-freshclam $SERVICES"
+    SERVICES="cups clamav-daemon clamav-freshclam $SERVICES"
     systemctl enable $SERVICES
 else
-    SERVICES="cupsd freshclam $SERVICES"
+    SERVICES="cupsd clamd freshclam $SERVICES"
     for SERVICE in $SERVICES;do
         if [ "$INIT" = dinit ];then
             INITSTART="ln -s /etc/dinit.d/$SERVICE /etc/dinit.d/boot.d/"
