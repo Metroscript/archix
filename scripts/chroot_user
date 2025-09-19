@@ -9,11 +9,16 @@ if ! [ -d "$HOME"/.config ];then
 fi
 
 #Paru
-git clone https://aur.archlinux.org/paru.git
-cd paru
+if [ "$PABIN" = true ];then
+    PARU="paru-bin";else
+    PARU="paru"
+fi
+
+git clone https://aur.archlinux.org/"$PARU".git
+cd "$PARU"
 makepkg -si --noconfirm
 cd "$HOME"
-rm -rf paru/
+rm -rf "$PARU"
 mkdir "$HOME"/.config/paru/
 
 cp /etc/paru.conf .config/paru/
@@ -29,11 +34,6 @@ fi
 #        sudo pacman -S --needed --noconfirm librewolf
 #    fi
 #fi
-
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-flatpak install flathub io.gitlab.librewolf-community #Flatpak has weaker sandbox. Install from AUR?
-
 
 #KDE Startup files
 if ! [ -d "$HOME"/.config/autostart ];then
