@@ -95,6 +95,7 @@ FS=btrfs
 printf "FS=%s\n" "$FS" >> "$VAR_FILE"
 
 if [ "$FS" = btrfs ];then
+    VOL_CREATE=y
     if [ "$VOL_CREATE" = y ];then
         until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
             printf "Use premate subvolume layout? [y/n]: "
@@ -219,7 +220,7 @@ if [ "$RPASSWD" = y ];then
     done
 fi
 
-printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
 while :;do
     unset PASSWORD PASSWD_CONF
     until [ -n "$PASSWORD" ];do

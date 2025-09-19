@@ -44,19 +44,24 @@ mkfs.fat -F 32 -n EFI "$ESP_PART"
 if [ "$LUKS" = true ];then
     printf "%s" "$LUKS_PASSWORD" | cryptsetup -v luksFormat "$ROOT_PART" -
     printf "%s" "$LUKS_PASSWORD" | cryptsetup luksOpen "$ROOT_PART" root -
-    ROOT_UUID=$(lsblk -oUUID /dev/mapper/root | sed '/UUID/d')
-    CRYPT_PART_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d' | sed "/$ROOT_UUID/d")
-    printf "ROOT_UUID=%s\nCRYPT_PART_UUID=%s\n" "$ROOT_UUID" "$CRYPT_PART_UUID" >> "$HOME"/archix/scripts/vars
+    CRYPT_ROOT_PART="$ROOT_PART"
     ROOT_PART=/dev/mapper/root
-else
-    ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
-    printf "ROOT_UUID=%s\n" "$ROOT_UUID" >> "$HOME"/archix/scripts/vars
 fi
 printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
 if [ "$FS" = ext4 ];then
     mkfs.ext4 -L Root "$ROOT_PART";else
     mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
 fi
+
+#Get UUIDS
+if [ "$LUKS" = true ];then
+    ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
+    CRYPT_PART_UUID=$(lsblk -oUUID "$CRYPT_ROOT_PART" | sed '/UUID/d' | sed "/$ROOT_UUID/d")
+    printf "CRYPT_PART_UUID=%s\n" "$CRYPT_PART_UUID" >> "$HOME"/archix/scripts/vars
+else
+    ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
+fi
+printf "ROOT_UUID=%s\n" "$ROOT_UUID" >> "$HOME"/archix/scripts/vars
 
 #Make subvolumes
 if [ "$FS" = btrfs ] && [ -n "$SUBVOLS" ];then
