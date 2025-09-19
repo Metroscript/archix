@@ -120,7 +120,6 @@ fi
 UCODE=$(pacman -Qs ucode | grep ucode | cut -d/ -f2 | cut -d\  -f1 | cut -d- -f1)
 printf "%s_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$UCODE" > /etc/cmdline.d/security.conf
 printf "nowatchdog" > /etc/cmdline.d/nowatchdog.conf
-printf "zswap.enabled=0" > /etc/cmdline.d/disable_zswap.conf
 printf "quiet splash" > /etc/cmdline.d/splash.conf
 mkdir -p /efi/EFI/Linux
 
@@ -232,6 +231,7 @@ if [ "$RAM" -ge 8000000 ];then
     printf "zram" > /etc/modules-load.d/zram.conf
     printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
     printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$((RAM/2))" > /etc/udev/rules.d/99-zram.rules
+    printf "zswap.enabled=0" > /etc/cmdline.d/disable_zswap.conf
     #sed -i 's;quiet;zswap.enabled=0 quiet;' "$GRUB_DIR"
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else
@@ -240,6 +240,7 @@ else
         cd /
         btrfs subvolume create "@swap"
         SWAPVOLID=$(btrfs inspect-internal rootid @swap)
+        mkdir /.swap
         mount --mkdir -o defaults,noatime,subvol=@swap "$ROOT_PART" /.swap
         btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
         cp /etc/fstab /etc/fstab.bak
