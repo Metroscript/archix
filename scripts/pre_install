@@ -14,12 +14,18 @@ fi
 
 CHASSIS=$(cat /sys/class/dmi/id/chassis_type)
 if [ "$CHASSIS" = 9 ] || [ "$CHASSIS" = 10 ];then
-    LAPTOP=true
     printf "LAPTOP=true\n" >> "$VAR_FILE"
 fi
 
-printf "TIMEZONE=%s\n" "$(curl -s https://ipapi.co/timezone)" >> "$VAR_FILE"
-printf "COUNTRY=%s\n" "$(curl -s https://ipapi.co/timezone|cut -d/ -f1)" >> "$VAR_FILE"
+if lscpu | grep -E "AuthenticAMD";then
+    printf "CPU=amd\n" >> "$VAR_FILE"
+elif lscpu | grep -E "GenuineIntel";then
+    printf "CPU=intel\n" >> "$VAR_FILE"
+fi
+
+TIMEZONE=$(curl -s https://ipapi.co/timezone)
+COUNTRY=$(printf "%s" "$TIMEZONE" | cut -d/ -f1)
+printf "TIMEZONE=%s\nCOUNTRY=%s\n" "$TIMEZONE" "$COUNTRY" >> "$VAR_FILE"
 
 DISKS=$(lsblk -no TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2" | "$3}')
 while :;do
@@ -59,7 +65,7 @@ fi
 printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
 
 until [ "$LUKS" = y ] || [ "$LUKS" = n ];do
-    printf "Encrypt root with LUKS (Experimental)?\n[y/n]: "
+    printf "Encrypt root with LUKS?\n[y/n]: "
     read LUKS
 done
 if [ "$LUKS" = y ];then
@@ -84,75 +90,61 @@ if [ "$LUKS" = y ];then
     printf "LUKS=false\n" >> "$VAR_FILE"
 fi
 
-#until [ "$FS" = 1 ] || [ "$FS" = 2 ];do
-#    printf "Select a filesystem for root: 1.EXT4 2.BTRFS\n[1,2]: "
-#    read FS
-#done
-#if [ "$FS" = 1 ];then
-#    FS=ext4;else
-FS=btrfs
-#fi
-printf "FS=%s\n" "$FS" >> "$VAR_FILE"
-
-if [ "$FS" = btrfs ];then
-    VOL_CREATE=y
-    if [ "$VOL_CREATE" = y ];then
-        until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
-            printf "Use premade subvolume layout? [y/n]: "
-            read REC_VOLS
+until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
+    printf "Use premade subvolume layout? [y/n]: "
+    read REC_VOLS
+done
+if [ "$REC_VOLS" = y ];then
+    SUBVOLS="@ @home @var_cache @var_log @var_tmp @var_libvirt_images"
+    SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/tmp /mnt/var/lib/libvirt/images"
+elif [ "$REC_VOLS" = n ];then
+    until [ "$NEW_SUBVOL" = n ];do
+        unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
+        until [ -n "$SUBVOL_NAME" ];do
+            printf "Name of subvolume: "
+            read SUBVOL_NAME
         done
-        if [ "$REC_VOLS" = y ];then
-            SUBVOLS="@ @home @var_cache @var_log @var_tmp @var_libvirt_images"
-            SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/tmp /mnt/var/lib/libvirt/images"
-        elif [ "$REC_VOLS" = n ];then
-            until [ "$NEW_SUBVOL" = n ];do
-                unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
-                until [ -n "$SUBVOL_NAME" ];do
-                    printf "Name of subvolume: "
-                    read SUBVOL_NAME
-                done
-                for i in $SUBVOLS;do
-                    if [ "$SUBVOL_NAME" = "$i" ];then
-                        printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
-                        continue 2
-                    fi
-                done
-                until [ -n "$SUBVOL_PATH" ];do
-                    printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
-                    read SUBVOL_PATH
-                done
-                for i in $SUBVOL_PATHS;do
-                    if [ "$SUBVOL_PATH" = "$i" ];then
-                        printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
-                    continue 2
-                    fi
-                done
-                until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
-                    printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
-                    read SUBVOL_CONF
-                done
-                if [ "$SUBVOL_CONF" = y ];then
-                    if [ -z "$SUBVOLS" ];then
-                        SUBVOLS="$SUBVOL_NAME";else
-                        SUBVOLS="$SUBVOLS $SUBVOL_NAME"
-                    fi
-                    if [ -z "$SUBVOL_PATHS" ];then
-                        SUBVOL_PATHS="$SUBVOL_PATH";else
-                        SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
-                    fi
-                    until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
-                        printf "Create another subvolume?\n[y/n]: "
-                        read NEW_SUBVOL
-                    done
-                    if [ "$NEW_SUBVOL" = y ];then
-                        continue
-                    fi
-                fi
+        for i in $SUBVOLS;do
+            if [ "$SUBVOL_NAME" = "$i" ];then
+                printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
+                continue 2
+            fi
+        done
+        until [ -n "$SUBVOL_PATH" ];do
+            printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
+            read SUBVOL_PATH
+        done
+        for i in $SUBVOL_PATHS;do
+            if [ "$SUBVOL_PATH" = "$i" ];then
+                printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
+                continue 2
+            fi
+        done
+        until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
+            printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
+            read SUBVOL_CONF
+        done
+        if [ "$SUBVOL_CONF" = y ];then
+            if [ -z "$SUBVOLS" ];then
+                SUBVOLS="$SUBVOL_NAME";else
+                SUBVOLS="$SUBVOLS $SUBVOL_NAME"
+            fi
+            if [ -z "$SUBVOL_PATHS" ];then
+                SUBVOL_PATHS="$SUBVOL_PATH";else
+                SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
+            fi
+            until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
+                printf "Create another subvolume?\n[y/n]: "
+                read NEW_SUBVOL
             done
-        fi
-        printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
-    fi
+            if [ "$NEW_SUBVOL" = y ];then
+                continue
+            fi
+            fi
+    done
 fi
+printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
+
 if [ -n "$SUBVOLS" ];then
     until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
         printf "Install snapper for automated subvolume snapshots?\n[y/n]: "
@@ -196,8 +188,26 @@ until [ "$UN_CONF" = y ];do
     done
 done
 
+while :;do
+    unset PASSWORD PASSWD_CONF
+    until [ -n "$PASSWORD" ];do
+        printf "Password for standard user: "
+        read PASSWORD
+    done
+    until [ -n "$PASSWD_CONF" ];do
+        printf "Confirm Password for standard user: "
+        read PASSWD_CONF
+    done
+    if [ "$PASSWORD" = "$PASSWD_CONF" ];then
+        break;else
+        printf "PASSWORDS DID NOT MATCH!\n"
+        continue
+    fi
+done
+printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+
 until [ "$RPASSWD" = y ] || [ "$RPASSWD" = n ];do
-    printf "Set root password?\n[y/n]: "
+    printf "Set root password? (Root account will be locked otherwise)\n[y/n]: "
     read RPASSWD
 done
 if [ "$RPASSWD" = y ];then
@@ -221,23 +231,6 @@ if [ "$RPASSWD" = y ];then
 fi
 
 printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
-while :;do
-    unset PASSWORD PASSWD_CONF
-    until [ -n "$PASSWORD" ];do
-        printf "Password for standard user: "
-        read PASSWORD
-    done
-    until [ -n "$PASSWD_CONF" ];do
-        printf "Confirm Password for standard user: "
-        read PASSWD_CONF
-    done
-    if [ "$PASSWORD" = "$PASSWD_CONF" ];then
-        break;else
-        printf "PASSWORDS DID NOT MATCH!\n"
-        continue
-    fi
-done
-printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
 
 until [ "$PABIN" = y ] || [ "$PABIN" = n ];do
     printf "Install paru as a binary rather than compiling? (Faster install)\n[y/n]: "
@@ -357,14 +350,14 @@ printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 #fi
 #printf "LOCKDOWN=%s\n" "$LOCKDOWN" >> "$VAR_FILE"
 
-until [ "$CRON" = 1 ] || [ "$CRON" = 2 ];do
-    printf "Install 1.Cronie or 2.Fcron for cron daemon?\n[1,2]: "
-    read CRON
-done
-if [ "$CRON" = 1 ];then
-    printf "CRON=cronie\n" >> "$VAR_FILE";else
-    printf "CRON=fcron\n" >> "$VAR_FILE"
-fi
+#until [ "$CRON" = 1 ] || [ "$CRON" = 2 ];do
+#    printf "Install 1.Cronie or 2.Fcron for cron daemon?\n[1,2]: "
+#    read CRON
+#one
+#if [ "$CRON" = 1 ];then
+#    printf "CRON=cronie\n" >> "$VAR_FILE";else
+#    printf "CRON=fcron\n" >> "$VAR_FILE"
+#fi
 
 
 until [ "$VM" = y ] || [ "$VM" = n ];do

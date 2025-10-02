@@ -21,20 +21,13 @@ if [ "$ARTIX" = true ] && [ "$INIT" = dinit ];then
 fi
 
 #Firewall settings
-#ufw status
 ufw enable
 ufw default deny incoming
 ufw default allow outgoing
-#ufw allow http
-#ufw allow https
-#ufw allow dns
-#ufw allow mdns
-#ufw allow 631
-#ufw allow qbittorrent
 
-# Regenerate the initramfs and grub config in case they've been updated
+# Regenerate the UKIs incase mkinitcpio has been updated and remove initramfs files from /boot
+rm /boot/initramfs*
 mkinitcpio -P
-#grub-mkconfig -o /boot/grub/grub.cfg
 
 #Init Services
 if [ "$VM" = true ];then
@@ -47,7 +40,7 @@ fi
 SERVICES="NetworkManager ufw chronyd sddm $CRON earlyoom apparmor auditd$QEMU$TLP"
 
 if [ "$ARTIX" != true ];then
-    SERVICES="cups clamav-daemon clamav-freshclam $SERVICES"
+    SERVICES="cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"
     systemctl enable $SERVICES
 else
     SERVICES="cupsd clamd freshclam $SERVICES"
@@ -64,14 +57,6 @@ else
         $INITSTART
     done
 fi
-
-#if [ "$grbtrfs" = y ];then
-#    if [ "$init" = dinit ];then
-#        printf "type            = process\nenv-file        = /etc/default/grub-btrfs/config\ncommand         = /usr/bin/grub-btrfsd --syslog /.snapshots\nsmooth-recovery = true" | sudo tee /etc/dinit.d/grub-btrfsd
-#        dinitctl enable grub-btrfsd;else
-#        systemctl enable grub-btrfsd
-#    fi
-#fi
 
 if [ "$INIT" = s6 ];then
     s6-db-reload

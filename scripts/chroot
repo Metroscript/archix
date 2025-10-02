@@ -3,6 +3,28 @@
 
 INSTALL="pacman -S --needed --noconfirm"
 
+#Hostname
+printf "%s" "$HN" > /etc/hostname
+
+#Root Password
+if [ -n "$ROOT_PASSWORD" ];then
+    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
+fi
+
+#User
+$INSTALL "$SHELL"
+useradd -mG wheel -s /bin/"$SHELL" "$USERNAME"
+printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
+
+#:wheel permissions (nopasswd)
+if [ "$DOAS" = true ];then
+    $INSTALL opendoas
+    printf "permit nopass :wheel\n" > /etc/doas.conf
+    chown -c root:root /etc/doas.conf
+    chmod -c 0400 /etc/doas.conf;else
+    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
+fi
+
 #Pacman Config
 sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 
@@ -37,11 +59,6 @@ fi
 #Update to get repos
 pacman -Syu --noconfirm
 
-$INSTALL base-devel
-if [ "$DOAS" = true ];then
-    pacman -R --noconfirm base-devel sudo
-    $INSTALL opendoas
-fi
 $INSTALL pacman-contrib pkgfile
 pkgfile -uz "zstd -T0 -19"
 
@@ -53,18 +70,16 @@ if [ "$DOAS" = true ];then
 fi
 
 #Snapper Configs & mkinitcpio module
-if [ "$FS" = btrfs ];then
-    sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
-    if [ "$SNAPPER" = true ];then
-        $INSTALL snapper
-        for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
-            SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
-            btrfs subvolume create "$SNAP_PATH"/.snapshots
-            cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
-            sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
-        done
-        sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
-    fi
+sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
+if [ "$SNAPPER" = true ];then
+    $INSTALL snapper
+    for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
+        SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
+        btrfs subvolume create "$SNAP_PATH"/.snapshots
+        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
+        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
+    done
+    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
 fi
 
 #Set Timezone
@@ -81,34 +96,6 @@ locale-gen
 
 #####
 
-#Hostname
-printf "%s" "$HN" > /etc/hostname
-
-#Root Password
-if [ -n "$ROOT_PASSWORD" ];then
-    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
-fi
-
-#User
-$INSTALL "$SHELL"
-useradd -mG wheel -s /bin/"$SHELL" "$USERNAME"
-printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
-
-#:wheel permissions (nopasswd)
-if [ "$DOAS" = true ];then
-    printf "permit nopass :wheel\n" > /etc/doas.conf
-    chown -c root:root /etc/doas.conf
-    chmod -c 0400 /etc/doas.conf;else
-    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
-fi
-
-#CPU Microcode
-if lscpu | grep -E "AuthenticAMD";then
-    $INSTALL amd-ucode
-elif lscpu | grep -E "GenuineIntel";then
-    $INSTALL intel-ucode
-fi
-
 #UKI
 mkdir /etc/cmdline.d
 if [ "$LUKS" = true ];then
@@ -117,36 +104,23 @@ if [ "$LUKS" = true ];then
 else
     printf "root=UUID=%s rootflags=subvolid=%s rw" "$ROOT_UUID" "$(btrfs inspect-internal rootid /)" > /etc/cmdline.d/root.conf
 fi
-UCODE=$(pacman -Qs ucode | grep ucode | cut -d/ -f2 | cut -d\  -f1 | cut -d- -f1)
-printf "%s_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$UCODE" > /etc/cmdline.d/security.conf
+printf "%s_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$CPU" > /etc/cmdline.d/security.conf
 printf "nowatchdog" > /etc/cmdline.d/nowatchdog.conf
 printf "quiet splash" > /etc/cmdline.d/splash.conf
+
 mkdir -p /efi/EFI/Linux
 
 for i in $KERNELS;do
     sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' -i -e 's/fallback_image/#fallback_image/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
     mkinitcpio -p "$i"
-    NAME=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
-    if [ "$NAME" = "Linux" ];then
+    SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
+    if [ "$SUFFIX" = "Linux" ];then
         NAME="Arch Linux";else
-        NAME="Arch Linux $NAME"
+        NAME="Arch Linux $SUFFIX"
     fi
     efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
+    efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
 done
-
-#GRUB
-#GRUB_DIR=/etc/default/grub
-#sed -i -e 's/GRUB_TIMEOUT=5/GRUB_TIMEOUT=3/' -i -e 's/loglevel=./loglevel=0/' "$GRUB_DIR"
-#if [ "$LUKS" = true ];then
-#    sed -i "s/quiet/cryptdevice=UUID=${CRYPT_PART_UUID}:root root=UUID=${ROOT_UUID} quiet" /etc/default/grub
-#    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-#fi
-#if [ "$EFI" = true ];then
-#    grub-install --efi-directory=/efi --bootloader-id=GRUB
-#    sed -i 's/quiet/efi=disable_early_pci_dma quiet/' "$GRUB_DIR";else
-#    grub-install
-#fi
-#grub-mkconfig -o /boot/grub/grub.cfg
 
 # DOWNLOADS #
 #Grapics Drivers
@@ -155,19 +129,16 @@ if lspci | grep "VGA" | grep -E "Radeon|AMD|ATI" && lspci | grep "VGA" | grep -E
     if [ "$STEAM" = true ];then
         $INSTALL lib32-vulkan-{radeon,intel}
     fi
-    #printf "RUSTICL_ENABLE=radeonsi,iris\n" >> /etc/environment
 elif lspci | grep "VGA" | grep -E "Radeon|AMD|ATI";then
    $INSTALL vulkan-{radeon,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver
    if [ "$STEAM" = true ];then
        $INSTALL lib32-vulkan-radeon
    fi
-   #printf "RUSTICL_ENABLE=radeonsi\n" >> /etc/environment
 elif lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
      $INSTALL vulkan-{intel,icd-loader} mesa opencl-rusticl-mesa libva-{intel-driver,utils,vdpau-driver} intel-media-driver
      if [ "$STEAM" = true ];then
          $INSTALL lib32-vulkan-intel
      fi
-     #printf "RUSTICL_ENABLE=iris\n" >> /etc/environment
 fi
 
 #System Packages
@@ -208,18 +179,19 @@ if [ "$ARTIX" = true ];then
     if [ "$VM" = true ];then
        $INSTALL libvirt-"$INIT"
     fi
-    if [ "$CRON" = fcron ];then
-        if pacman -Q cronie;then
-            pacman -Rns --noconfirm cronie{,-"$INIT"}
-        fi
-       $INSTALL fcron{,-"$INIT"}
-    fi;else
-    if [ "$CRON" = fcron ];then
-        if pacman -Q cronie;then
-            pacman -Rns --noconfirm cronie
-        fi
-        $INSTALL fcron
-    fi
+    #if [ "$CRON" = fcron ];then
+    #    if pacman -Q cronie;then
+    #        pacman -Rns --noconfirm cronie{,-"$INIT"}
+    #    fi
+    #   $INSTALL fcron{,-"$INIT"}
+    #fi
+#else
+    #if [ "$CRON" = fcron ];then
+    #    if pacman -Q cronie;then
+    #        pacman -Rns --noconfirm cronie
+    #    fi
+    #    $INSTALL fcron
+    #fi
 fi
 
 #KDE Plasma
@@ -232,33 +204,21 @@ if [ "$RAM" -ge 8000000 ];then
     printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
     printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$((RAM/2))" > /etc/udev/rules.d/99-zram.rules
     printf "zswap.enabled=0" > /etc/cmdline.d/disable_zswap.conf
-    #sed -i 's;quiet;zswap.enabled=0 quiet;' "$GRUB_DIR"
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else
     #2GB Predetermined swap file
-    if [ "$FS" = btrfs ];then
-        cd /
-        btrfs subvolume create "@swap"
-        SWAPVOLID=$(btrfs inspect-internal rootid @swap)
-        mkdir /.swap
-        mount --mkdir -o defaults,noatime,subvol=@swap "$ROOT_PART" /.swap
-        btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
-        cp /etc/fstab /etc/fstab.bak
-        printf "/.swap btrfs defaults,noatime,subvolid=%s 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$SWAPVOLID" >> /etc/fstab
-        cd;else
-        dd if=/dev/zero of=/.swapfile bs=1M count=2048 status=progress
-        chmod 600 /.swapfile
-        mkswap -U clear /.swapfile
-        cp /etc/fstab /etc/fstab.bak
-        printf "/.swapfile none swap defaults 0 0\n" > /etc/fstab
-    fi
+    cd /
+    btrfs subvolume create "@swap"
+    SWAPVOLID=$(btrfs inspect-internal rootid @swap)
+    mkdir /.swap
+    mount -o defaults,noatime,subvolid="$SWAPVOLID" "$ROOT_PART" /.swap
+    btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
+    cp /etc/fstab /etc/fstab.bak
+    printf "/.swap btrfs defaults,noatime,subvolid=%s 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$SWAPVOLID" >> /etc/fstab
 fi
 
 #Plymouth Setup
 sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
-#if ! grep splash "$GRUB_DIR";then
-#    sed -i 's/quiet/quiet splash/' "$GRUB_DIR"
-#fi
 plymouth-set-default-theme spinner
 
 #Set SDDM theme
@@ -276,26 +236,15 @@ if [ -f /etc/udev/rules.d/99-zram.rules ];then
     sed -i '/vm.swappiness/d' /etc/sysctl.d/99-ram.conf
     printf "\n#Optimise zram performance\nvm.watermark_boost_factor = 0\nvm.watermark_scale_factor = 125\nvm.page-cluster = 1" >> /etc/sysctl.d/99-ram.conf
 fi
-#sed -i 's/quiet/nowatchdog quiet/' "$GRUB_DIR"
 
 #Apparmor & Audit Config
-#sed -i 's/quiet/lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off random.trust_cpu=off quiet/' "$GRUB_DIR"
 sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
 groupadd -r audit
 gpasswd -a "$USERNAME" audit
 sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
 
-#Kernel Lockdown
-#if [ "$LOCKDOWN" != false ];then
-#    sed -i "s/slab_nomerge/lockdown=$LOCKDOWN slab_nomerge/" "$GRUB_DIR"
-#fi
-
-#Networkmanager
+#Networkmanager IPv6 Privacy Features
 printf "[connection]\nipv6.ip6-privacy=2" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
-#Enable opportunistic (Allow fallbacks) DNS-over-TLS
-#printf "[connection]\nconnection.dns-over-tls=1" > /etc/NetworkManager/conf.d/dns-over-tls.conf
-#Enable DNSSEC
-#printf "conf-file=/usr/share/dnsmasq/trust-anchors.conf\ndnssec" > /etc/NetworkManager/dnsmasq.d/dnssec.conf
 
 #Whonix Machine ID
 printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id
@@ -303,9 +252,7 @@ printf "b08dfa6083e7567a1921a715000001fb" > /var/lib/dbus/machine-id
 
 #Qemu setup
 if [ "$VM" = true ];then
-    if [ "$FS" = btrfs ];then
-        chattr +C /var/lib/libvirt/images
-    fi
+    chattr +C /var/lib/libvirt/images
     sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
     sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
     sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
