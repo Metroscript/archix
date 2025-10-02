@@ -111,8 +111,8 @@ FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-fi
 if [ "$ARTIX" = true ];then
     basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE networkmanager-"$INIT" wget btrfs-progs git efibootmgr "$CPU"-ucode
     fstabgen -U /mnt >> /mnt/etc/fstab
-    #INSTALL="basestrap /mnt";else
+    INSTALL="basestrap /mnt";else
     pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE networkmanager wget btrfs-progs git efibootmgr "$CPU"-ucode
     genfstab -U /mnt >> /mnt/etc/fstab
-    #INSTALL="pacstrap /mnt"
+    INSTALL="pacstrap /mnt"
 fi
