@@ -48,7 +48,7 @@ if [ "$LUKS" = true ];then
     ROOT_PART=/dev/mapper/root
 fi
 printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
-mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
+mkfs.btrfs -L Root --checksum blake2 "$ROOT_PART"
 MOUNT_OPTS="noatime,compress-force=zstd:1,space_cache=v2"
 
 #Get UUIDS
@@ -102,8 +102,6 @@ fi
 mount --mkdir -o noatime,nodev,noexec,nosuid "$ESP_PART" /mnt/efi
 
 #Update keyring
-pacman-key --init
-pacman-key --populate
 
 FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-firmware-mellanox linux-firmware-nfp linux-firmware-qcom linux-firmware-qlogic"
 

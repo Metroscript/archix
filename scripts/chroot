@@ -162,7 +162,7 @@ fi
 #Pipewire
 $INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
 
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl earlyoom clamav plymouth apparmor audit python-{notify2,psutil} alacritty neovim
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav plymouth apparmor audit python-{notify2,psutil} alacritty neovim
 
 if [ "$LAPTOP" = true ];then
     $INSTALL tlp
@@ -189,7 +189,7 @@ flatpak install -y flathub io.gitlab.librewolf-community
 
 #Artix services
 if [ "$ARTIX" = true ];then
-    $INSTALL {sddm,cups,chrony,ufw,earlyoom,clamav,apparmor,audit}-"$INIT" "$INIT"-system
+    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit}-"$INIT" "$INIT"-system
     if [ "$LAPTOP" = true ];then
         $INSTALL tlp-"$INIT"
     fi
@@ -226,12 +226,12 @@ else
     #2GB Predetermined swap file
     cd /
     btrfs subvolume create "@swap"
-    SWAPVOLID=$(btrfs inspect-internal rootid @swap)
+    #SWAPVOLID=$(btrfs inspect-internal rootid @swap)
     mkdir /.swap
-    mount -o defaults,noatime,subvolid="$SWAPVOLID" "$ROOT_PART" /.swap
+    mount -o defaults,noatime,subvol=/@swap "$ROOT_PART" /.swap
     btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
     cp /etc/fstab /etc/fstab.bak
-    printf "/.swap btrfs defaults,noatime,subvolid=%s 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$SWAPVOLID" >> /etc/fstab
+    printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
 fi
 
 #Plymouth Setup
@@ -274,15 +274,6 @@ if [ "$VM" = true ];then
     sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
     sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
     gpasswd -a "$USERNAME" libvirt
-fi
-
-#Earlyoom Config
-if [ "$ARTIX" != true ];then
-    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|systemd)'", /etc/default/earlyoom
-elif [ "$INIT" = dinit ];then
-    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|dinit)'", /etc/dinit.d/config/earlyoom.conf
-else
-    sed -i s,EARLYOOM_ARGS=".*",EARLYOOM_ARGS="-n -m 5 -s 5 -r 60 --ignore-root-user --avoid '(^|/)(init|Xorg|Xwayland|$init)'", /etc/default/earlyoom
 fi
 
 cp -r "$HOME"/archix /home/"$USERNAME"

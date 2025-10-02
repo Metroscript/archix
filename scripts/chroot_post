@@ -37,7 +37,7 @@ if [ "$LAPTOP" = true ];then
     TLP=" tlp"
 fi
 
-SERVICES="NetworkManager ufw chronyd sddm $CRON earlyoom apparmor auditd$QEMU$TLP"
+SERVICES="NetworkManager ufw chronyd sddm $CRON apparmor auditd$QEMU$TLP"
 
 if [ "$ARTIX" != true ];then
     SERVICES="cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"
