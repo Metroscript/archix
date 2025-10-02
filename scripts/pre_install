@@ -7,6 +7,21 @@ fi
 
 printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
+pacman-key --init
+pacman-key --populate
+pacman -Sy --noconfirm mokutil
+
+if mokutil --sb-state | grep "Setup Mode";then
+    until [ "$SB" = y ] || [ "$SB" = n ];do
+        printf "Detected Secure Boot in setup mode. Use Secure Boot?\n[y/n]: "
+        read SB
+    done;else
+    SB=n
+fi
+if [ "$SB" = y ];then
+    printf "SB=true\n" >> "$VAR_FILE";else
+    printf "SB=false\n" >> "$VAR_FILE"
+fi
 if grep -qi "Artix" /etc/os-release;then
     ARTIX=true
     printf "ARTIX=true\n" >> "$VAR_FILE" 
@@ -17,9 +32,9 @@ if [ "$CHASSIS" = 9 ] || [ "$CHASSIS" = 10 ];then
     printf "LAPTOP=true\n" >> "$VAR_FILE"
 fi
 
-if lscpu | grep -E "AuthenticAMD";then
+if lscpu | grep -q "AuthenticAMD";then
     printf "CPU=amd\n" >> "$VAR_FILE"
-elif lscpu | grep -E "GenuineIntel";then
+elif lscpu | grep -q "GenuineIntel";then
     printf "CPU=intel\n" >> "$VAR_FILE"
 fi
 
