@@ -25,6 +25,13 @@ if [ "$DOAS" = true ];then
     sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
 fi
 
+if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
+    mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
+fi
+if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook ];then
+    mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled
+fi
+
 #Pacman Config
 sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 
@@ -94,7 +101,10 @@ sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
 printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
 locale-gen
 
-#####
+#Plymouth Setup
+$INSTALL plymouth
+sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
+plymouth-set-default-theme spinner
 
 #UKI
 mkdir /etc/cmdline.d
@@ -162,7 +172,7 @@ fi
 #Pipewire
 $INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
 
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav plymouth apparmor audit python-{notify2,psutil} alacritty neovim
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools
 
 if [ "$LAPTOP" = true ];then
     $INSTALL tlp
@@ -170,6 +180,9 @@ fi
 
 if [ "$STEAM" = true ];then
     $INSTALL steam gamemode lib32-gamemode
+    if ! getent group gamemode;then
+        groupadd -r gamemode
+    fi
     gpasswd -a "$USERNAME" gamemode
 fi
 #Virtual Machine
@@ -189,7 +202,7 @@ flatpak install -y flathub io.gitlab.librewolf-community
 
 #Artix services
 if [ "$ARTIX" = true ];then
-    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit}-"$INIT" "$INIT"-system
+    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit,rng-tools}-"$INIT" "$INIT"-system
     if [ "$LAPTOP" = true ];then
         $INSTALL tlp-"$INIT"
     fi
@@ -226,17 +239,10 @@ else
     #2GB Predetermined swap file
     cd /
     btrfs subvolume create "@swap"
-    #SWAPVOLID=$(btrfs inspect-internal rootid @swap)
-    mkdir /.swap
-    mount -o defaults,noatime,subvol=/@swap "$ROOT_PART" /.swap
+    mount --mkdir -o defaults,noatime,subvol=/@/@swap "$ROOT_PART" /.swap
     btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
-    cp /etc/fstab /etc/fstab.bak
-    printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
+    printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
 fi
-
-#Plymouth Setup
-sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
-plymouth-set-default-theme spinner
 
 #Set SDDM theme
 printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf

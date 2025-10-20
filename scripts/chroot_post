@@ -26,7 +26,12 @@ ufw default deny incoming
 ufw default allow outgoing
 
 # Regenerate the UKIs incase mkinitcpio has been updated and remove initramfs files from /boot
-rm /boot/initramfs*
+if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled ];then
+    mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled /usr/share/libalpm/hooks/90-mkinitcpio-install.hook
+fi
+if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled ];then
+    mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook
+fi
 mkinitcpio -P
 
 #Init Services
@@ -37,7 +42,7 @@ if [ "$LAPTOP" = true ];then
     TLP=" tlp"
 fi
 
-SERVICES="NetworkManager ufw chronyd sddm $CRON apparmor auditd$QEMU$TLP"
+SERVICES="NetworkManager ufw chronyd sddm $CRON apparmor auditd rngd$QEMU$TLP"
 
 if [ "$ARTIX" != true ];then
     SERVICES="cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"
