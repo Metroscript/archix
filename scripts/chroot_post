@@ -21,9 +21,9 @@ if [ "$ARTIX" = true ] && [ "$INIT" = dinit ];then
 fi
 
 #Firewall settings
-ufw enable
 ufw default deny incoming
 ufw default allow outgoing
+ufw enable
 
 # Regenerate the UKIs incase mkinitcpio has been updated and remove initramfs files from /boot
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled ];then

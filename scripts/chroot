@@ -238,10 +238,11 @@ if [ "$RAM" -ge 8000000 ];then
 else
     #2GB Predetermined swap file
     cd /
-    btrfs subvolume create "@swap"
-    mount --mkdir -o defaults,noatime,subvol=/@/@swap "$ROOT_PART" /.swap
+    mount -o subvolid=5 "$ROOT_PART" /mnt
+    btrfs subvolume create /mnt/@swap
+    mount --mkdir -o defaults,noatime,subvol=/@swap "$ROOT_PART" /.swap
     btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
-    printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
+    printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
 fi
 
 #Set SDDM theme
