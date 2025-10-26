@@ -172,7 +172,7 @@ fi
 #Pipewire
 $INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
 
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw iptables-nft fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools
 
 if [ "$LAPTOP" = true ];then
     $INSTALL tlp
@@ -209,19 +209,6 @@ if [ "$ARTIX" = true ];then
     if [ "$VM" = true ];then
        $INSTALL libvirt-"$INIT"
     fi
-    #if [ "$CRON" = fcron ];then
-    #    if pacman -Q cronie;then
-    #        pacman -Rns --noconfirm cronie{,-"$INIT"}
-    #    fi
-    #   $INSTALL fcron{,-"$INIT"}
-    #fi
-#else
-    #if [ "$CRON" = fcron ];then
-    #    if pacman -Q cronie;then
-    #        pacman -Rns --noconfirm cronie
-    #    fi
-    #    $INSTALL fcron
-    #fi
 fi
 
 #KDE Plasma
@@ -240,6 +227,7 @@ else
     cd /
     mount -o subvolid=5 "$ROOT_PART" /mnt
     btrfs subvolume create /mnt/@swap
+    umount /mnt
     mount --mkdir -o defaults,noatime,subvol=/@swap "$ROOT_PART" /.swap
     btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
     printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
@@ -249,16 +237,11 @@ fi
 printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
 
 #Sysctl Settings
-if ! [ -d /etc/sysctl.d ];then
-    mkdir /etc/sysctl.d/
-fi
-printf "#Hide kernel pointers\nkernel.kptr_restrict=2\n\n#Restrict access to kernel log\nkernel.dmesg_restrict=1\n\n#Restrict kernel log output during boot\nkernel.printk=3 3 3 3\n\n#Restrict BPF & enable JIT hardening\nkernel.unprivileged_bpf_disabled=1\nnet.core.bpf_jit_harden=2\n\n#Restrict loading of TTY line disciplines\ndev.tty.ldisc_autoload=0\n\n#Mitigate use-after-free flaws\nvm.unprivileged_userfaultfd=0\n\n#Prevent loading of another kernel during runtime\nkernel.kexec_load_disabled=1\n\n#Restrict SysRq access to only through use of the secure attention key (Set to '0' to disable SysRq)\nkernel.sysrq=4\n\n#Restrict use of kernel performance events\nkernel.perf_event_paranoid=3" > /etc/sysctl.d/99-kernel-security.conf
-printf "#Protect against SYN flood attacks\nnet.ipv4.tcp_syncookies=1\n\n#Drop RST packets in time-wait state\nnet.ipv4.tcp_rfc1337=1\n\n#IP source validation\nnet.ipv4.conf.all.rp_filter=1\nnet.ipv4.conf.default.rp_filter=1\n\n#Disable TCP timestamps\nnet.ipv4.tcp_timestamps=0\n\n#Prevent source routing\nnet.ipv4.conf.all.accept_source_route=0\nnet.ipv4.conf.default.accept_source_route=0\nnet.ipv6.conf.all.accept_source_route=0\nnet.ipv6.conf.default.accept_source_route=0\n\n#IPv6 privacy extentions\nnet.ipv6.conf.all.use_tempaddr = 2\nnet.ipv6.conf.default.use_tempaddr = 2" > /etc/sysctl.d/99-network.conf
-printf "#Increase ASLR bit entropy\nvm.mmap_rnd_bits=32\nvm.mmap_rnd_compat_bits=16\n\n#Allow sym/hardlinks to be created only when destination is not world-writable or shares the same owner of the source\nfs.protected_symlinks=1\nfs.protected_hardlinks=1\n\n#Prevents access to files in world-writable directories by those who are not the owner\nfs.protected_fifos=2\nfs.protected_regular=2\n\n#Limit ptrace to root or processes with CAP_SYS_PTRACE\nkernel.yama.ptrace_scope=2" > /etc/sysctl.d/99-userspace.conf
-printf "#Improve compatability by increasing memory map count\nvm.max_map_count=2147483642\nvm.swappiness=50" > /etc/sysctl.d/99-ram.conf
+mv "$HOME"/archix/etc/sysctl.d /etc/
+
 if [ -f /etc/udev/rules.d/99-zram.rules ];then
-    sed -i '/vm.swappiness/d' /etc/sysctl.d/99-ram.conf
-    printf "\n#Optimise zram performance\nvm.watermark_boost_factor = 0\nvm.watermark_scale_factor = 125\nvm.page-cluster = 1" >> /etc/sysctl.d/99-ram.conf
+    sed -i 's/vm.swappiness=.*/vm.swappiness=150/' /etc/sysctl.d/99-memory.conf
+    printf "\n#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0" >> /etc/sysctl.d/99-memory.conf
 fi
 
 #Apparmor & Audit Config
