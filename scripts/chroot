@@ -112,7 +112,7 @@ sed -i -e "s,ROOT_UUID,$ROOT_UUID," -i -e "s,ROOT_SUBVOLUME_ID,$(btrfs inspect-i
 
 if [ "$LUKS" = true ];then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root" /etc/cmdline.d/root.conf
+    sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root/" /etc/cmdline.d/root.conf
 fi
 
 sed -i "s/CPU_BRAND/$CPU/" /etc/cmdline.d/security.conf

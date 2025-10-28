@@ -26,6 +26,8 @@ ufw default allow outgoing
 ufw enable
 
 # Regenerate the UKIs incase mkinitcpio has been updated and remove initramfs files from /boot
+rm /boot/initramfs* #Remove initramfs generated during pacstrap
+
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled ];then
     mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled /usr/share/libalpm/hooks/90-mkinitcpio-install.hook
 fi
