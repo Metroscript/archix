@@ -27,25 +27,12 @@ if [ "$DOAS" = true ];then
     sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
 fi
 
-#if [ "$ARTIX" != true ];then
-#    paru -S --needed --noconfirm librewolf-bin;else
-#    if [ "$DOAS" = true ];then
-#        doas pacman -S --needed --noconfirm librewolf;else
-#        sudo pacman -S --needed --noconfirm librewolf
-#    fi
-#fi
-
-#KDE Startup files
-if ! [ -d "$HOME"/.config/autostart ];then
-    mkdir "$HOME"/.config/autostart
-fi
+#config
+fish -c 'set -U fish_greeting'
+mv "$HOME"/archix/config/* "$HOME"/.config/
 if [ "$ARTIX" = true ];then
     printf "[Desktop Entry]\nExec=/usr/bin/pkill -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pidwait -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pipewire & /usr/bin/pipewire-pulse & /usr/bin/sleep 1 ; /usr/bin/wireplumber &\nName=Pipewire\nType=Application\nX-KDE-AutostartScript=true" > ~/.config/autostart/pipewire.desktop
 fi
-printf "[Desktop Entry]\nType=Application\nName=Apparmor Notify\nComment=Notify User of Apparmor Denials\nTryExec=aa-notify\nExec=aa-notify -p -s 1 -w 60 -f /var/log/audit/audit.log\nStartupNotify=false\nNoDisplay=true" > "$HOME"/.config/autostart/apparmor-notify.desktop
-
-#config
-mv "$HOME"/archix/dotfiles/config/* "$HOME"/.config/
 #Install Thumbfast
 mkdir "$HOME"/.config/mpv/scripts/
 cd "$HOME"/.config/mpv/scripts/
@@ -55,9 +42,4 @@ wget 'https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua'
 cd "$HOME"
 if [ "$STEAM" = true ] && ! [ -d "$HOME"/Games ];then
     mkdir Games
-fi
-mv "$HOME"/archix/dotfiles/shells/bash/.* "$HOME"
-if [ "$SHELL" = fish ];then
-    fish -c 'set -U fish_greeting'
-    mv "$HOME"/archix/dotfiles/shells/config.fish ~/.config/fish/
 fi

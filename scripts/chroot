@@ -4,7 +4,7 @@
 INSTALL="pacman -S --needed --noconfirm"
 
 #Hostname
-printf "%s" "$HN" > /etc/hostname
+printf "%s\n" "$HN" > /etc/hostname
 
 #Root Password
 if [ -n "$ROOT_PASSWORD" ];then
@@ -12,8 +12,7 @@ if [ -n "$ROOT_PASSWORD" ];then
 fi
 
 #User
-$INSTALL "$SHELL"
-useradd -mG wheel -s /bin/"$SHELL" "$USERNAME"
+useradd -mG wheel -s /bin/fish "$USERNAME"
 printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
 
 #:wheel permissions (nopasswd)
@@ -107,16 +106,16 @@ sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
 plymouth-set-default-theme spinner
 
 #UKI
-mkdir /etc/cmdline.d
+mv "$HOME"/archix/etc/cmdline.d /etc/
+
+sed -i -e "s,ROOT_UUID,$ROOT_UUID," -i -e "s,ROOT_SUBVOLUME_ID,$(btrfs inspect-internal rootid /)," /etc/cmdline.d/root.conf
+
 if [ "$LUKS" = true ];then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    printf "cryptdevice=UUID=%s:root root=UUID=%s rootflags=subvolid=%s rw" "$CRYPT_PART_UUID" "$ROOT_UUID" "$(btrfs inspect-internal rootid /)" > /etc/cmdline.d/root.conf
-else
-    printf "root=UUID=%s rootflags=subvolid=%s rw" "$ROOT_UUID" "$(btrfs inspect-internal rootid /)" > /etc/cmdline.d/root.conf
+    sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root" /etc/cmdline.d/root.conf
 fi
-printf "%s_iommu=on efi=disable_early_pci_dma lsm=landlock,lockdown,yama,integrity,apparmor,bpf audit=1 lockdown=integrity slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none debugfs=off" "$CPU" > /etc/cmdline.d/security.conf
-printf "nowatchdog" > /etc/cmdline.d/nowatchdog.conf
-printf "quiet splash" > /etc/cmdline.d/splash.conf
+
+sed -i "s/CPU_BRAND/$CPU/" /etc/cmdline.d/security.conf
 
 mkdir -p /efi/EFI/Linux
 
@@ -172,7 +171,7 @@ fi
 #Pipewire
 $INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
 
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools
+$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools flatpak
 
 if [ "$LAPTOP" = true ];then
     $INSTALL tlp
@@ -191,11 +190,6 @@ if [ "$VM" = true ];then
 fi
 
 #Flatpak Setup
-if pacman -Q linux-hardened;then
-   pacman -Syu --needed --noconfirm flatpak bubblewrap-suid;else
-   pacman -Syu --needed --noconfirm flatpak bubblewrap
-fi
-
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 flatpak install -y flathub io.gitlab.librewolf-community
@@ -216,11 +210,11 @@ $INSTALL plasma-meta cryfs flatpak-kcm fwupd packagekit-qt6 xdg-desktop-portal-{
 
 #Zram & Swap
 RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
+
 if [ "$RAM" -ge 8000000 ];then
-    printf "zram" > /etc/modules-load.d/zram.conf
-    printf "options zram num_devices=1" > /etc/modprobe.d/zram.conf
-    printf "ACTION==\"add\", KERNEL==\"zram0\", ATTR{comp_algorithm}=\"zstd\", ATTR{disksize}=\"%sK\", RUN=\"/usr/bin/mkswap -U clear /dev/zram0\"" "$((RAM/2))" > /etc/udev/rules.d/99-zram.rules
-    printf "zswap.enabled=0" > /etc/cmdline.d/disable_zswap.conf
+    mv -t /etc/ "$HOME"/archix/etc/modules-load.d "$HOME"/archix/etc/modprobe.d "$HOME"/archix/etc/udev
+    sed -i "s/ZRAM_SIZE/$((RAM/2))K/" /etc/udev/rules.d/99-zram.rules
+    printf "zswap.enabled=0\n" > /etc/cmdline.d/disable_zswap.conf
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else
     #2GB Predetermined swap file
@@ -241,17 +235,19 @@ mv "$HOME"/archix/etc/sysctl.d /etc/
 
 if [ -f /etc/udev/rules.d/99-zram.rules ];then
     sed -i 's/vm.swappiness=.*/vm.swappiness=150/' /etc/sysctl.d/99-memory.conf
-    printf "\n#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0" >> /etc/sysctl.d/99-memory.conf
+    printf "#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0\n" >> /etc/sysctl.d/99-memory.conf
 fi
 
 #Apparmor & Audit Config
 sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
-groupadd -r audit
+if ! getent group audit;then
+    groupadd -r audit
+fi
 gpasswd -a "$USERNAME" audit
 sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
 
 #Networkmanager IPv6 Privacy Features
-printf "[connection]\nipv6.ip6-privacy=2" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
+printf "[connection]\nipv6.ip6-privacy=2\n" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
 
 #Whonix Machine ID
 printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id

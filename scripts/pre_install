@@ -257,16 +257,6 @@ if [ "$PABIN" = y ];then
 fi
 printf "PABIN=%s\n" "$PABIN" >> "$VAR_FILE"
 
-until [ "$SHELL" = 1 ] || [ "$SHELL" = 2 ];do
-    printf "Set shell for user: \"%s\". 1.bash 2.fish\n[1/2]: " "$USERNAME"
-    read SHELL
-done
-if [ "$SHELL" = 1 ];then
-    SHELL=bash;else
-    SHELL=fish
-fi
-printf "SHELL=%s\n" "$SHELL" >> "$VAR_FILE"
-
 until [ "$HN_CONF" = y ];do
     unset HN_CONF HN
     until [ -n "$HN" ];do
@@ -301,8 +291,7 @@ until [ "$DOAS" = y ] || [ "$DOAS" = n ];do
 done
 if [ "$DOAS" = y ];then
     DOAS=true
-    sed -i "/stuff/a alias sudo=doas" "$HOME"/archix/dotfiles/shells/bash/.bashrc
-    sed -i "/stuff/a alias sudo doas" "$HOME"/archix/dotfiles/shells/config.fish
+    sed -i "/stuff/a alias sudo doas" "$HOME"/archix/config/fish/config.fish
 elif [ "$DOAS" = n ];then
     DOAS=false
 fi
