@@ -209,13 +209,17 @@ fi
 #KDE Plasma
 $INSTALL plasma-meta cryfs flatpak-kcm fwupd packagekit-qt6 xdg-desktop-portal-{kde,gtk} gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-{inotify-survey,cli-tools},graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5 plymouth-kcm
 
+mv "$HOME"/archix/etc/sysctl.d /etc/
+
 #Zram & Swap
 RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
 
 if [ "$RAM" -ge 8000000 ];then
-    mv -t /etc/ "$HOME"/archix/etc/modules-load.d "$HOME"/archix/etc/modprobe.d "$HOME"/archix/etc/udev
+    cp -R -t /etc/ "$HOME"/archix/etc/modules-load.d "$HOME"/archix/etc/modprobe.d "$HOME"/archix/etc/udev
     sed -i "s/ZRAM_SIZE/$((RAM/2))K/" /etc/udev/rules.d/99-zram.rules
     printf "zswap.enabled=0\n" > /etc/cmdline.d/disable_zswap.conf
+    sed -i 's/vm.swappiness=.*/vm.swappiness=150/' /etc/sysctl.d/99-memory.conf
+    printf "#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0\n" >> /etc/sysctl.d/99-memory.conf
     printf "/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
 else
     #2GB Predetermined swap file
@@ -230,14 +234,6 @@ fi
 
 #Set SDDM theme
 printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
-
-#Sysctl Settings
-mv "$HOME"/archix/etc/sysctl.d /etc/
-
-if [ -f /etc/udev/rules.d/99-zram.rules ];then
-    sed -i 's/vm.swappiness=.*/vm.swappiness=150/' /etc/sysctl.d/99-memory.conf
-    printf "#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0\n" >> /etc/sysctl.d/99-memory.conf
-fi
 
 #Apparmor & Audit Config
 sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
