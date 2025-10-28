@@ -3,10 +3,29 @@
 
 cd "$HOME"
 
-#Make config folder
-if ! [ -d "$HOME"/.config ];then
-    mkdir "$HOME"/.config
+#config
+mv "$HOME"/archix/config "$HOME"/.config
+fish -c 'set -U fish_greeting'
+if [ "$ARTIX" = true ];then
+    printf "[Desktop Entry]\nExec=/usr/bin/pkill -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pidwait -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pipewire & /usr/bin/pipewire-pulse & /usr/bin/sleep 1 ; /usr/bin/wireplumber &\nName=Pipewire\nType=Application\nX-KDE-AutostartScript=true" > ~/.config/autostart/pipewire.desktop
 fi
+#Install Thumbfast
+mkdir "$HOME"/.config/mpv/scripts/
+cd "$HOME"/.config/mpv/scripts/
+#Standard OSC
+wget 'https://raw.githubusercontent.com/po5/thumbfast/5fefc9b8e995cf5e663666aa10649af799e60186/player/lua/osc.lua'
+wget 'https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua'
+
+cd "$HOME"
+
+if [ "$STEAM" = true ] && ! [ -d "$HOME"/Games ];then
+    mkdir Games
+fi
+
+#Make config folder
+#if ! [ -d "$HOME"/.config ];then
+#    mkdir "$HOME"/.config
+#fi
 
 #Paru
 if [ "$PABIN" = true ];then
@@ -25,21 +44,4 @@ cp /etc/paru.conf .config/paru/
 sed -i -e 's/#Clean/Clean/' -i -e 's/#UpgradeMenu/UpgradeMenu/' -i -e 's/#News/News/' "$HOME"/.config/paru/paru.conf
 if [ "$DOAS" = true ];then
     sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
-fi
-
-#config
-fish -c 'set -U fish_greeting'
-mv "$HOME"/archix/config/* "$HOME"/.config/
-if [ "$ARTIX" = true ];then
-    printf "[Desktop Entry]\nExec=/usr/bin/pkill -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pidwait -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pipewire & /usr/bin/pipewire-pulse & /usr/bin/sleep 1 ; /usr/bin/wireplumber &\nName=Pipewire\nType=Application\nX-KDE-AutostartScript=true" > ~/.config/autostart/pipewire.desktop
-fi
-#Install Thumbfast
-mkdir "$HOME"/.config/mpv/scripts/
-cd "$HOME"/.config/mpv/scripts/
-#Standard OSC
-wget 'https://raw.githubusercontent.com/po5/thumbfast/5fefc9b8e995cf5e663666aa10649af799e60186/player/lua/osc.lua'
-wget 'https://raw.githubusercontent.com/po5/thumbfast/master/thumbfast.lua'
-cd "$HOME"
-if [ "$STEAM" = true ] && ! [ -d "$HOME"/Games ];then
-    mkdir Games
 fi

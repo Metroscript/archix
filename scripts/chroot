@@ -12,6 +12,7 @@ if [ -n "$ROOT_PASSWORD" ];then
 fi
 
 #User
+$INSTALL fish
 useradd -mG wheel -s /bin/fish "$USERNAME"
 printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
 
