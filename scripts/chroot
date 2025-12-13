@@ -211,7 +211,7 @@ if [ "$ARTIX" = true ];then
 fi
 
 #KDE Plasma
-$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5
+$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng plasma-keyboard breeze5
 
 mv "$HOME"/archix/etc/sysctl.d /etc/
 
