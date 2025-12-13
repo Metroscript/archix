@@ -22,6 +22,8 @@ if [ "$STEAM" = true ] && ! [ -d "$HOME"/Games ];then
     mkdir Games
 fi
 
+flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
 #Make config folder
 #if ! [ -d "$HOME"/.config ];then
 #    mkdir "$HOME"/.config

@@ -76,6 +76,9 @@ if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
 fi
 
+#Switch to busybox initramfs
+sed -i 's/base systemd autodetect microcode modconf kms keyboard keymap sd-vconsole block filesystems fsck/base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck/' /etc/mkinitcpio.conf
+
 #Snapper Configs & mkinitcpio module
 sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
 if [ "$SNAPPER" = true ];then
@@ -89,6 +92,11 @@ if [ "$SNAPPER" = true ];then
     sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
 fi
 
+#Plymouth Setup
+$INSTALL plymouth
+sed -i 's/autodetect/plymouth autodetect/g' /etc/mkinitcpio.conf
+plymouth-set-default-theme spinner
+
 #Set Timezone
 $INSTALL chrony
 mv /etc/chrony.conf /etc/chrony.conf.bak
@@ -101,10 +109,6 @@ sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
 printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
 locale-gen
 
-#Plymouth Setup
-$INSTALL plymouth
-sed -i 's/udev/udev plymouth/g' /etc/mkinitcpio.conf
-plymouth-set-default-theme spinner
 
 #UKI
 mv "$HOME"/archix/etc/cmdline.d /etc/
@@ -207,7 +211,7 @@ if [ "$ARTIX" = true ];then
 fi
 
 #KDE Plasma
-$INSTALL plasma-meta cryfs flatpak-kcm fwupd packagekit-qt6 xdg-desktop-portal-{kde,gtk} gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-{inotify-survey,cli-tools},graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5 plymouth-kcm
+$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng maliit-keyboard breeze5
 
 mv "$HOME"/archix/etc/sysctl.d /etc/
 
