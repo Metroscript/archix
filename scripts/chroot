@@ -146,7 +146,7 @@ DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
 for i in $KERNELS;do
     sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
     if [ "$FALLBACK" = true ];then
-        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback)/PRESETS=('default' 'fallback)/" /etc/mkinitcpio.d/"$i".preset
+        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback')/PRESETS=('default' 'fallback')/" /etc/mkinitcpio.d/"$i".preset
     fi
     mkinitcpio -p "$i"
     SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
