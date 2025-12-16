@@ -103,19 +103,10 @@ mount --mkdir -o noatime,nodev,noexec,nosuid "$ESP_PART" /mnt/efi
 
 FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-firmware-mellanox linux-firmware-nfp linux-firmware-qcom linux-firmware-qlogic"
 
-if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
-    mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
-fi
-if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook ];then
-    mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled
-fi
-
 #Install Base root
 if [ "$ARTIX" = true ];then
     basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode
-    fstabgen -U /mnt >> /mnt/etc/fstab
-    INSTALL="basestrap /mnt";else
+    fstabgen -U /mnt >> /mnt/etc/fstab;else
     pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode
     genfstab -U /mnt >> /mnt/etc/fstab
-    INSTALL="pacstrap /mnt"
 fi

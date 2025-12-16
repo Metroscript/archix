@@ -56,7 +56,7 @@ if [ "$ARTIX" = true ];then
 else
     mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
     reflector --sort rate -c "$(curl ifconfig.co/country-iso)" -p https -a 48 -f 5 --save /etc/pacman.d/mirrorlist
-    if ! [ -e /etc/pacman.d/mirrorlist-arch ];then
+    if ! [ -e /etc/pacman.d/mirrorlist ];then
         mv /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
         printf "\nTHERE WAS AN ERROR WITH REFLECTOR MIRRORLIST GENERATION. PLEASE SORT MIRRORLIST MANUALLY AFTER INSTALL.\n"
         sleep 5
@@ -76,11 +76,7 @@ if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
 fi
 
-#Switch to busybox initramfs
-sed -i 's/base systemd autodetect microcode modconf kms keyboard keymap sd-vconsole block filesystems fsck/base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck/' /etc/mkinitcpio.conf
-
-#Snapper Configs & mkinitcpio module
-sed -i 's/MODULES=()/MODULES=(btrfs)/' /etc/mkinitcpio.conf
+#Snapper Configs
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
     for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
@@ -92,10 +88,6 @@ if [ "$SNAPPER" = true ];then
     sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
 fi
 
-#Plymouth Setup
-$INSTALL plymouth
-sed -i 's/autodetect/plymouth autodetect/g' /etc/mkinitcpio.conf
-plymouth-set-default-theme spinner
 
 #Set Timezone
 $INSTALL chrony
@@ -110,14 +102,32 @@ printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
 locale-gen
 
 
+#Get current hooks for cleaner mkinitcpio configuration
+HOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
+
+#Plymouth Setup
+$INSTALL plymouth
+OLDHOOKS=$HOOKS
+HOOKS=$(echo "$OLDHOOKS" | sed 's/autodetect/plymouth autodetect/')
+sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
+plymouth-set-default-theme spinner
+
 #UKI
 mv "$HOME"/archix/etc/cmdline.d /etc/
 
 sed -i -e "s,ROOT_UUID,$ROOT_UUID," -i -e "s,ROOT_SUBVOLUME_ID,$(btrfs inspect-internal rootid /)," /etc/cmdline.d/root.conf
 
 if [ "$LUKS" = true ];then
-    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root/" /etc/cmdline.d/root.conf
+    if [ "$ARTIX" = true ];then
+        ENCRYPT_HOOK="encrypt"
+        sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root/" /etc/cmdline.d/root.conf
+    else
+        ENCRYPT_HOOK="sd-encrypt"
+        sed -i -e "s/root/rd.luks.name=$CRYPT_PART_UUID=root rd.luks.options=timeout=0,password-echo=no root/" -i -e "s/ rw/,x-systemd.device-timeout=0 rw/" /etc/cmdline.d/root.conf
+    fi
+    OLDHOOKS=$HOOKS
+    HOOKS=$(echo "$OLDHOOKS" | sed "s/filesystems/$ENCRYPT_HOOK filesystems/")
+    sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 fi
 
 sed -i "s/CPU_BRAND/$CPU/" /etc/cmdline.d/security.conf
@@ -127,7 +137,10 @@ mkdir -p /efi/EFI/Linux
 DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
 
 for i in $KERNELS;do
-    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' -i -e 's/fallback_image/#fallback_image/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+    if [ "$FALLBACK" = true ];then
+        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default', 'fallback)/PRESETS=('default', 'fallback)/" /etc/mkinitcpio.d/"$i".preset
+    fi
     mkinitcpio -p "$i"
     SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
     if [ "$SUFFIX" = "Linux" ];then
@@ -135,13 +148,19 @@ for i in $KERNELS;do
         NAME="Arch Linux $SUFFIX"
     fi
     efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
-    efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
+    if [ "$FALLBACK" = true ];then
+        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
+    fi
 done
 
 NORMALNUMS=$(efibootmgr | grep "Arch Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
-FALLBACKNUMS=$(efibootmgr | grep "Arch Linux" | grep "Fallback" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
 
-efibootmgr -o "$NORMALNUMS""$FALLBACKNUMS""$DEFBOOTORDER"
+if [ "$FALLBACK" = true ];then
+    FALLBACKNUMS=$(efibootmgr | grep "Arch Linux" | grep "Fallback" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
+    efibootmgr -o "$NORMALNUMS""$FALLBACKNUMS""$DEFBOOTORDER"
+else
+    efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"
+fi
 
 #Secure Boot Setup
 if [ "$SB" = true ];then

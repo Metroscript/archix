@@ -105,60 +105,62 @@ if [ "$LUKS" = y ];then
     printf "LUKS=false\n" >> "$VAR_FILE"
 fi
 
-until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
-    printf "Use premade subvolume layout? [y/n]: "
-    read REC_VOLS
-done
-if [ "$REC_VOLS" = y ];then
-    SUBVOLS="@ @home @var_cache @var_log @var_tmp @var_libvirt_images"
-    SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/tmp /mnt/var/lib/libvirt/images"
-elif [ "$REC_VOLS" = n ];then
-    until [ "$NEW_SUBVOL" = n ];do
-        unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
-        until [ -n "$SUBVOL_NAME" ];do
-            printf "Name of subvolume: "
-            read SUBVOL_NAME
-        done
-        for i in $SUBVOLS;do
-            if [ "$SUBVOL_NAME" = "$i" ];then
-                printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
-                continue 2
-            fi
-        done
-        until [ -n "$SUBVOL_PATH" ];do
-            printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
-            read SUBVOL_PATH
-        done
-        for i in $SUBVOL_PATHS;do
-            if [ "$SUBVOL_PATH" = "$i" ];then
-                printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
-                continue 2
-            fi
-        done
-        until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
-            printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
-            read SUBVOL_CONF
-        done
-        if [ "$SUBVOL_CONF" = y ];then
-            if [ -z "$SUBVOLS" ];then
-                SUBVOLS="$SUBVOL_NAME";else
-                SUBVOLS="$SUBVOLS $SUBVOL_NAME"
-            fi
-            if [ -z "$SUBVOL_PATHS" ];then
-                SUBVOL_PATHS="$SUBVOL_PATH";else
-                SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
-            fi
-            until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
-                printf "Create another subvolume?\n[y/n]: "
-                read NEW_SUBVOL
-            done
-            if [ "$NEW_SUBVOL" = y ];then
-                continue
-            fi
-            fi
-    done
-fi
-printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
+SUBVOLS="@ @home @var_cache @var_log"
+SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log"
+#until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
+#    printf "Use premade subvolume layout? [y/n]: "
+#    read REC_VOLS
+#done
+#if [ "$REC_VOLS" = y ];then
+#    SUBVOLS="@ @home @var_cache @var_log @var_libvirt_images"
+#    SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/lib/libvirt/images"
+#elif [ "$REC_VOLS" = n ];then
+#    until [ "$NEW_SUBVOL" = n ];do
+#        unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
+#        until [ -n "$SUBVOL_NAME" ];do
+#            printf "Name of subvolume: "
+#            read SUBVOL_NAME
+#        done
+#        for i in $SUBVOLS;do
+#            if [ "$SUBVOL_NAME" = "$i" ];then
+#                printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
+#                continue 2
+#            fi
+#        done
+#        until [ -n "$SUBVOL_PATH" ];do
+#            printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
+#            read SUBVOL_PATH
+#        done
+#        for i in $SUBVOL_PATHS;do
+#            if [ "$SUBVOL_PATH" = "$i" ];then
+#                printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
+#                continue 2
+#            fi
+#        done
+#        until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
+#            printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
+#            read SUBVOL_CONF
+#        done
+#        if [ "$SUBVOL_CONF" = y ];then
+#            if [ -z "$SUBVOLS" ];then
+#                SUBVOLS="$SUBVOL_NAME";else
+#                SUBVOLS="$SUBVOLS $SUBVOL_NAME"
+#            fi
+#            if [ -z "$SUBVOL_PATHS" ];then
+#                SUBVOL_PATHS="$SUBVOL_PATH";else
+#                SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
+#            fi
+#            until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
+#                printf "Create another subvolume?\n[y/n]: "
+#                read NEW_SUBVOL
+#            done
+#            if [ "$NEW_SUBVOL" = y ];then
+#                continue
+#            fi
+#            fi
+#    done
+#fi
+#printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
 
 if [ -n "$SUBVOLS" ];then
     until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
@@ -342,38 +344,28 @@ for i in $KERNELS;do
 done
 printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 
-#until [ "$LOCKDOWN" = 0 ] || [ "$LOCKDOWN" = 1 ] || [ "$LOCKDOWN" = 2 ];do
-#    printf "nable Kernel lockdown to prevent modification of kernel during runtime? (Prevents non-signed kernel modules from loading)\n0.No (Default) 1.Integrity (Standard Lockdown) 2.Confidential (Changes how RAM is accessed; Can cause issues)\n[0,1,2]: "
-#    read LOCKDOWN
-#done
-#if [ "$LOCKDOWN" -gt 0 ];then
-#    if [ "$LOCKDOWN" = 1 ];then
-#        LOCKDOWN=integrity;else
-#        LOCKDOWN=confidential
-#    fi
-#fi
-#printf "LOCKDOWN=%s\n" "$LOCKDOWN" >> "$VAR_FILE"
-
-#until [ "$CRON" = 1 ] || [ "$CRON" = 2 ];do
-#    printf "Install 1.Cronie or 2.Fcron for cron daemon?\n[1,2]: "
-#    read CRON
-#one
-#if [ "$CRON" = 1 ];then
-#    printf "CRON=cronie\n" >> "$VAR_FILE";else
-#    printf "CRON=fcron\n" >> "$VAR_FILE"
-#fi
-
+until [ "$FALLBACK" = y ] || [ "$FALLBACK" = n ];do
+    printf "Configure mkinitcpio to create fallback images?\n[y/n]: "
+    read FALLBACK
+done
+if [ "$FALLBACK" = y ];then
+    FALLBACK=true
+elif [ "$FALLBACK" = n ];then
+    FALLBACK=false
+fi
+printf "FALLBACK=%s\n" "$FALLBACK" >> "$VAR_FILE"
 
 until [ "$VM" = y ] || [ "$VM" = n ];do
     printf "Install Qemu for virtual machines?\n[y/n]: "
     read VM
 done
 if [ "$VM" = y ];then
-    printf "VM=true\n" >> "$VAR_FILE";else
+    printf "VM=true\n" >> "$VAR_FILE"
+    SUBVOLS="$SUBVOLS @var_libvirt_images"
+    SUBVOL_PATHS="$SUBVOL_PATHS /mnt/var/lib/libvirt/images";else
     printf "VM=false\n" >> "$VAR_FILE"
-    sed -i "s/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp @var_libvirt_images\"/SUBVOLS=\"@ @home @var_cache @var_log @var_tmp\"/" "$VAR_FILE"
-    sed -i "s,SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp /var/lib/libvirt/images\",SUBVOL_PATHS=\"/ /home /var/cache /var/log /var/tmp\"," "$VAR_FILE"
 fi
+printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
 
 until [ "$STEAM" = y ] || [ "$STEAM" = n ];do
     printf "Install Steam?\n[y/n]: "
