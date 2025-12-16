@@ -105,6 +105,13 @@ locale-gen
 #Get current hooks for cleaner mkinitcpio configuration
 HOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
 
+if [ "$ARTIX" != true ];then # Remove keymap hook since sd-vconsole does the same thing
+    HOOKS=$(echo "$HOOKS" | sed 's/ keymap//')
+fi
+
+#vconsole
+printf "KEYMAP=%s\n" "$KEYMAP" > /etc/vconsole.conf
+
 #Plymouth Setup
 $INSTALL plymouth
 OLDHOOKS=$HOOKS

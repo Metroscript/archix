@@ -344,6 +344,37 @@ for i in $KERNELS;do
 done
 printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 
+find /usr/share/kbd/keymaps/ -type f -exec basename -s .map.gz {} \; | sed -e '/.inc/d' -e '/README/d' -e '/compose/d' -e '/.doc/d' -e '/.m4/d' -e '/hcesar/d' | sort > keymaps.txt
+
+until [ "$KEYMAPCONF" = y ] || [ "$KEYMAPCONF" = n ];do
+    printf "Configuring console keymap: Use 'us' keyboard layout (default)?\n[y/n]: "
+    read KEYMAPCONF
+done
+if [ "$KEYMAPCONF" = y ];then
+    KEYMAP=us
+elif [ "$KEYMAPCONF" = n ];then
+    while true;do
+        unset CUSTKEYMAPCONF
+        printf "Enter keyboard keymap to use. Type 'list' to show available keymaps: "
+        read CUSTKEYMAP
+        if [ "$CUSTKEYMAP" = "list" ];then
+            less keymaps.txt
+        elif ! grep -x "$CUSTKEYMAP" keymaps.txt;then
+            printf "Please enter a valid keymap!\n"
+        else
+            until [ "$CUSTKEYMAPCONF" = y ] || [ "$CUSTKEYMAPCONF" = n ];do
+                printf "Use the '%s' keymap?\n[y/n]: " "$CUSTKEYMAP"
+                read CUSTKEYMAPCONF
+            done
+            if [ "$CUSTKEYMAPCONF" = y ];then
+                KEYMAP=$CUSTKEYMAP
+                break
+            fi
+        fi
+    done
+fi
+printf "KEYMAP=%s\n" "$KEYMAP" >> "$VAR_FILE"
+
 until [ "$FALLBACK" = y ] || [ "$FALLBACK" = n ];do
     printf "Configure mkinitcpio to create fallback images?\n[y/n]: "
     read FALLBACK
