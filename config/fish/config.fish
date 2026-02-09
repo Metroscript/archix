@@ -3,14 +3,12 @@ if status is-interactive
 alias ls lsd
 alias ll 'lsd -l'
 alias la 'lsd -a'
-alias find fd
 alias cat bat
 alias neofetch fastfetch
 alias cp 'cp -riv'
 alias mv 'mv -iv'
 alias mkdir 'mkdir -vp'
 alias rm 'rm -Iv'
-alias cl clear
 alias open xdg-open
 alias vim nvim
 alias grep 'grep --colour=auto'

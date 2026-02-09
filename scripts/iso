@@ -49,10 +49,10 @@ if [ "$LUKS" = true ];then
 fi
 printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
 mkfs.btrfs -L Root --checksum blake2 "$ROOT_PART"
-MOUNT_OPTS="noatime,compress-force=zstd:1,space_cache=v2"
+MOUNT_OPTS="noatime,compress-force=zstd:1"
 
 #Get UUIDS
-sleep 10
+sleep 10 #BTRFS takes longer to generate UUIDs, this prevents readings from being blank
 if [ "$LUKS" = true ];then
     ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
     CRYPT_PART_UUID=$(lsblk -oUUID "$CRYPT_ROOT_PART" | sed '/UUID/d' | sed "/$ROOT_UUID/d")
@@ -85,7 +85,7 @@ for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep $(prin
 done
 
 #MOUNT
-if [ "$NO_DISCARD" = true ];then
+if [ "$NO_DISCARD" != true ];then
     MOUNT_OPTS="${MOUNT_OPTS},discard=async"
 fi
 if [ -n "$SUBVOLS" ];then
@@ -99,14 +99,14 @@ if [ -n "$SUBVOLS" ];then
     mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
 fi
 
-mount --mkdir -o noatime,nodev,noexec,nosuid "$ESP_PART" /mnt/efi
+mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /mnt/efi
 
 FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-firmware-mellanox linux-firmware-nfp linux-firmware-qcom linux-firmware-qlogic"
 
 #Install Base root
 if [ "$ARTIX" = true ];then
-    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode
+    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode eukify
     fstabgen -U /mnt >> /mnt/etc/fstab;else
-    pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode
+    pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode systemd-ukify
     genfstab -U /mnt >> /mnt/etc/fstab
 fi

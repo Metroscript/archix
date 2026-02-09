@@ -3,28 +3,6 @@
 
 INSTALL="pacman -S --needed --noconfirm"
 
-#Hostname
-printf "%s\n" "$HN" > /etc/hostname
-
-#Root Password
-if [ -n "$ROOT_PASSWORD" ];then
-    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
-fi
-
-#User
-$INSTALL fish
-useradd -mG wheel -s /bin/fish "$USERNAME"
-printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
-
-#:wheel permissions (nopasswd)
-if [ "$DOAS" = true ];then
-    $INSTALL opendoas
-    printf "permit nopass :wheel\n" > /etc/doas.conf
-    chown -c root:root /etc/doas.conf
-    chmod -c 0400 /etc/doas.conf;else
-    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
-fi
-
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
     mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
 fi
@@ -66,16 +44,6 @@ fi
 #Update to get repos
 pacman -Syu --noconfirm
 
-$INSTALL pacman-contrib pkgfile
-pkgfile -uz "zstd -T0 -19"
-
-#Makepkg Optimisations
-$INSTALL pigz lbzip2
-sed -i -e 's/#MAKEFLAGS.*/MAKEFLAGS="-j\$(nproc)"/' -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
-if [ "$DOAS" = true ];then
-     sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
-fi
-
 #Snapper Configs
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
@@ -88,19 +56,115 @@ if [ "$SNAPPER" = true ];then
     sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
 fi
 
-
-#Set Timezone
-$INSTALL chrony
-mv /etc/chrony.conf /etc/chrony.conf.bak
-wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/etc/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
-ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
-hwclock --systohc
-
 #Set Language Locale (Needs work)
 sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
 printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
 locale-gen
 
+#vconsole
+printf "KEYMAP=%s\n" "$KEYMAP" > /etc/vconsole.conf
+
+# DOWNLOADS #
+#Grapics Drivers
+if lspci | grep "VGA" | grep -E "Radeon|AMD|ATI" && lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
+    $INSTALL vulkan-{radeon,intel,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver intel-media-driver lib32-vulkan-{radeon,intel}
+elif lspci | grep "VGA" | grep -E "Radeon|AMD|ATI";then
+   $INSTALL vulkan-{radeon,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver lib32-vulkan-radeon
+elif lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
+     $INSTALL vulkan-{intel,icd-loader} mesa opencl-rusticl-mesa libva-{intel-driver,utils,vdpau-driver} intel-media-driver lib32-vulkan-intel
+fi
+
+#System Packages
+#$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv qbittorrent nvtop chrony libressl clamav apparmor audit tk python-{notify2,psutil} alacritty neovim rng-tools flatpak steam gamemode lib32-gamemode less qemu-full edk2-ovmf virt-{manager,viewer} dnsmasq vde2 bridge-utils openbsd-netcat pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire pacman-contrib pkgfile chrony plymouth fish pigz lbzip2
+
+cat "$HOME"/archix/packages/system.txt | $INSTALL -
+
+if [ "$LAPTOP" = true ];then
+    $INSTALL tlp
+fi
+
+#Artix services
+if [ "$ARTIX" = true ];then
+    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit,rng-tools,libvirt}-"$INIT" "$INIT"-system
+    if [ "$LAPTOP" = true ];then
+        $INSTALL tlp-"$INIT"
+    fi
+fi
+
+#KDE Plasma
+#$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng plasma-keyboard breeze5
+cat "$HOME"/archix/packages/plasma.txt | $INSTALL -
+
+pkgfile -u
+
+#Flatpak Setup
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+flatpak install -y flathub io.gitlab.librewolf-community
+
+#Set Timezone
+mv /etc/chrony.conf /etc/chrony.conf.bak
+wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/etc/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
+ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
+hwclock --systohc
+
+#Hostname
+printf "%s\n" "$HN" > /etc/hostname
+
+#Root Password
+if [ -n "$ROOT_PASSWORD" ];then
+    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
+fi
+
+#User
+useradd -mG wheel -s /bin/fish "$USERNAME"
+printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
+
+#:wheel permissions (nopasswd)
+if [ "$DOAS" = true ];then
+    $INSTALL opendoas
+    printf "permit nopass :wheel\n" > /etc/doas.conf
+    chown -c root:root /etc/doas.conf
+    chmod -c 0400 /etc/doas.conf;else
+    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
+fi
+
+if ! getent group gamemode;then
+    groupadd -r gamemode
+fi
+
+gpasswd -a "$USERNAME" gamemode
+
+#Set SDDM theme
+printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
+
+#Apparmor & Audit Config
+sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
+if ! getent group audit;then
+    groupadd -r audit
+fi
+gpasswd -a "$USERNAME" audit
+sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
+
+#Networkmanager IPv6 Privacy Features
+printf "[connection]\nipv6.ip6-privacy=2\n" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
+
+#Whonix Machine ID
+printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id
+printf "b08dfa6083e7567a1921a715000001fb" > /var/lib/dbus/machine-id
+
+#Qemu setup
+chattr +C /var/lib/libvirt/images
+sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
+sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
+sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
+gpasswd -a "$USERNAME" libvirt
+
+#Makepkg Optimisations
+sed -i -e 's/#MAKEFLAGS.*/MAKEFLAGS="-j\$(nproc)"/' -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
+if [ "$DOAS" = true ];then
+     sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
+fi
 
 #Get current hooks for cleaner mkinitcpio configuration
 HOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
@@ -112,15 +176,10 @@ if [ "$ARTIX" != true ];then
     sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 fi
 
-#vconsole
-printf "KEYMAP=%s\n" "$KEYMAP" > /etc/vconsole.conf
-
 #Plymouth Setup
-$INSTALL plymouth
 OLDHOOKS=$HOOKS
 HOOKS=$(echo "$OLDHOOKS" | sed 's/autodetect/plymouth autodetect/')
 sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
-plymouth-set-default-theme spinner
 
 #UKI
 mv "$HOME"/archix/etc/cmdline.d /etc/
@@ -144,33 +203,33 @@ sed -i "s/CPU_BRAND/$CPU/" /etc/cmdline.d/security.conf
 
 mkdir -p /efi/EFI/Linux
 
+if [ "$FALLBACK" = true ] && [ "$REFIND" != true ];then
+    mkdir /efi/EFI/BOOT
+fi
+
 DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
 
 for i in $KERNELS;do
-    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' /etc/mkinitcpio.d/"$i".preset
     if [ "$FALLBACK" = true ];then
-        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback')/PRESETS=('default' 'fallback')/" /etc/mkinitcpio.d/"$i".preset
+        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback')/PRESETS=('default' 'fallback')/" -i -e 's/#fallback_options/fallback_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+        if [ "$REFIND" != true ];then
+            sed -i 's,fallback_uki.*,fallback_uki="/efi/EFI/BOOT/BOOTx64.efi",'
+        fi
     fi
     mkinitcpio -p "$i"
-    SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
-    if [ "$SUFFIX" = "Linux" ];then
-        NAME="Arch Linux";else
-        NAME="Arch Linux $SUFFIX"
-    fi
-    efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
-    if [ "$FALLBACK" = true ];then
-        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
+    if [ "$REFIND" != true ];then
+        SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
+        if [ "$SUFFIX" = "Linux" ];then
+            NAME="Arch Linux";else
+            NAME="Arch Linux $SUFFIX"
+        fi
+        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
+        #if [ "$FALLBACK" = true ];then
+        #    efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
+        #fi
     fi
 done
-
-NORMALNUMS=$(efibootmgr | grep "Arch Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
-
-if [ "$FALLBACK" = true ];then
-    FALLBACKNUMS=$(efibootmgr | grep "Arch Linux" | grep "Fallback" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
-    efibootmgr -o "$NORMALNUMS""$FALLBACKNUMS""$DEFBOOTORDER"
-else
-    efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"
-fi
 
 #Secure Boot Setup
 if [ "$SB" = true ];then
@@ -182,65 +241,20 @@ if [ "$SB" = true ];then
     done
 fi
 
-# DOWNLOADS #
-#Grapics Drivers
-if lspci | grep "VGA" | grep -E "Radeon|AMD|ATI" && lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
-    $INSTALL vulkan-{radeon,intel,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver intel-media-driver
-    if [ "$STEAM" = true ];then
-        $INSTALL lib32-vulkan-{radeon,intel}
-    fi
-elif lspci | grep "VGA" | grep -E "Radeon|AMD|ATI";then
-   $INSTALL vulkan-{radeon,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver
-   if [ "$STEAM" = true ];then
-       $INSTALL lib32-vulkan-radeon
-   fi
-elif lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
-     $INSTALL vulkan-{intel,icd-loader} mesa opencl-rusticl-mesa libva-{intel-driver,utils,vdpau-driver} intel-media-driver
-     if [ "$STEAM" = true ];then
-         $INSTALL lib32-vulkan-intel
-     fi
+#if [ "$FALLBACK" = true ];then
+#    FALLBACKNUMS=$(efibootmgr | grep "Arch Linux" | grep "Fallback" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
+#    efibootmgr -o "$NORMALNUMS""$FALLBACKNUMS""$DEFBOOTORDER"
+#else
+if [ "$REFIND" = true ];then
+    $INSTALL refind
+    sbctl sign -s /usr/share/refind/drivers_x64/btrfs_x64.efi
+    sbctl sign -s /usr/share/refind/refind_x64.efi
+    refind-install
+    mv "$HOME"/archix/refind/* /efi/EFI/refind
+else
+    NORMALNUMS=$(efibootmgr | grep "Arch Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
+    efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"
 fi
-
-#System Packages
-#Pipewire
-$INSTALL pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire noise-suppression-for-voice
-
-$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv lollypop qbittorrent nvtop chrony libressl clamav apparmor audit python-{notify2,psutil} alacritty neovim rng-tools flatpak
-
-if [ "$LAPTOP" = true ];then
-    $INSTALL tlp
-fi
-
-if [ "$STEAM" = true ];then
-    $INSTALL steam gamemode lib32-gamemode
-    if ! getent group gamemode;then
-        groupadd -r gamemode
-    fi
-    gpasswd -a "$USERNAME" gamemode
-fi
-#Virtual Machine
-if [ "$VM" = true ];then
-    $INSTALL qemu-full edk2-ovmf virt-{manager,viewer} dnsmasq vde2 bridge-utils openbsd-netcat
-fi
-
-#Flatpak Setup
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-flatpak install -y flathub io.gitlab.librewolf-community
-
-#Artix services
-if [ "$ARTIX" = true ];then
-    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit,rng-tools}-"$INIT" "$INIT"-system
-    if [ "$LAPTOP" = true ];then
-        $INSTALL tlp-"$INIT"
-    fi
-    if [ "$VM" = true ];then
-       $INSTALL libvirt-"$INIT"
-    fi
-fi
-
-#KDE Plasma
-$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng plasma-keyboard breeze5
 
 mv "$HOME"/archix/etc/sysctl.d /etc/
 
@@ -263,33 +277,6 @@ else
     mount --mkdir -o defaults,noatime,subvol=/@swap "$ROOT_PART" /.swap
     btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
     printf "UUID=%s /.swap btrfs defaults,noatime,subvol=/@swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
-fi
-
-#Set SDDM theme
-printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
-
-#Apparmor & Audit Config
-sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
-if ! getent group audit;then
-    groupadd -r audit
-fi
-gpasswd -a "$USERNAME" audit
-sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
-
-#Networkmanager IPv6 Privacy Features
-printf "[connection]\nipv6.ip6-privacy=2\n" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
-
-#Whonix Machine ID
-printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id
-printf "b08dfa6083e7567a1921a715000001fb" > /var/lib/dbus/machine-id
-
-#Qemu setup
-if [ "$VM" = true ];then
-    chattr +C /var/lib/libvirt/images
-    sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
-    sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
-    sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
-    gpasswd -a "$USERNAME" libvirt
 fi
 
 cp -r "$HOME"/archix /home/"$USERNAME"

@@ -73,6 +73,17 @@ while :;do
         continue
     fi
 done
+
+WINCHECK_DISKS=$(printf "%s" "$DISKS" | sed "s,$INSTALL_DISK,,")
+for DISK in $WINCHECK_DISKS;do
+    if efibootmgr "$DISK" | grep -q "Microsoft basic data";then
+        printf "Windows installation detected on %s! Installing refind for dual-boot support..." "$DISK"
+        REFIND=true
+        sleep 5
+        break
+    fi
+done
+
 if grep -q 0 /sys/block/$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)/queue/rotational;then
     SSD=true;else
     SSD=false
@@ -105,8 +116,8 @@ if [ "$LUKS" = y ];then
     printf "LUKS=false\n" >> "$VAR_FILE"
 fi
 
-SUBVOLS="@ @home @var_cache @var_log"
-SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log"
+SUBVOLS="@ @home @var_cache @var_log @var_libvirt_images"
+SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/lib/libvirt/images"
 #until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
 #    printf "Use premade subvolume layout? [y/n]: "
 #    read REC_VOLS
@@ -273,18 +284,19 @@ done
 printf "HN=\"%s\"\n" "$HN" >> "$VAR_FILE"
 
 if [ "$ARTIX" = true ];then
-    until [ "$INIT" = 1 ] || [ "$INIT" = 2 ] || [ "$INIT" = 3 ] || [ "$INIT" = 4 ];do
-        printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
-        read INIT
-    done
-    if [ "$INIT" = 1 ];then
-        INIT=openrc
-    elif [ "$INIT" = 2 ];then
-        INIT=runit
-    elif [ "$INIT" = 3 ];then
-        INIT=dinit;else
-        INIT=s6
-    fi
+    #until [ "$INIT" = 1 ] || [ "$INIT" = 2 ] || [ "$INIT" = 3 ] || [ "$INIT" = 4 ];do
+    #    printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
+    #    read INIT
+    #done
+    #if [ "$INIT" = 1 ];then
+    #    INIT=openrc
+    #elif [ "$INIT" = 2 ];then
+    #    INIT=runit
+    #elif [ "$INIT" = 3 ];then
+    #    INIT=dinit;else
+    #    INIT=s6
+    #fi
+    INIT=dinit
     printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
 fi
 until [ "$DOAS" = y ] || [ "$DOAS" = n ];do
@@ -331,11 +343,18 @@ until [ "$ADD_KERNELS" = n ];do
         KERNELS="$KERNELS $KERNEL"
     fi
     until [ "$ADD_KERNELS" = y ] || [ "$ADD_KERNELS" = n ];do
-        printf "Install additional kernels?\n[y/n]: "
+        printf "Install additional kernels? (Refind will be installed to manage boot entries if multiple kernels are installed)\n[y/n]: "
         read ADD_KERNELS
     done
 done
 
+if [ $(printf "%s" "$KERNELS" | wc -w) -gt 1 ];then
+    REFIND=true
+fi
+
+if [ "$REFIND" = true ];then
+    printf "REFIND=%s\n" "$REFIND" >> "$VAR_FILE"
+fi
 for i in $KERNELS;do
     if [ -z "$HEADERS" ];then
         HEADERS="${i}-headers";else
@@ -376,7 +395,7 @@ fi
 printf "KEYMAP=%s\n" "$KEYMAP" >> "$VAR_FILE"
 
 until [ "$FALLBACK" = y ] || [ "$FALLBACK" = n ];do
-    printf "Configure mkinitcpio to create fallback images?\n[y/n]: "
+    printf "Configure mkinitcpio to create a fallback image? (image will be stored at /efi/EFI/BOOT/BOOTx64.efi if refind is not installed)\n[y/n]: "
     read FALLBACK
 done
 if [ "$FALLBACK" = y ];then
@@ -386,23 +405,4 @@ elif [ "$FALLBACK" = n ];then
 fi
 printf "FALLBACK=%s\n" "$FALLBACK" >> "$VAR_FILE"
 
-until [ "$VM" = y ] || [ "$VM" = n ];do
-    printf "Install Qemu for virtual machines?\n[y/n]: "
-    read VM
-done
-if [ "$VM" = y ];then
-    printf "VM=true\n" >> "$VAR_FILE"
-    SUBVOLS="$SUBVOLS @var_libvirt_images"
-    SUBVOL_PATHS="$SUBVOL_PATHS /mnt/var/lib/libvirt/images";else
-    printf "VM=false\n" >> "$VAR_FILE"
-fi
 printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
-
-until [ "$STEAM" = y ] || [ "$STEAM" = n ];do
-    printf "Install Steam?\n[y/n]: "
-    read STEAM
-done
-if [ "$STEAM" = y ];then
-    printf "STEAM=true\n" >> "$VAR_FILE";else
-    printf "STEAM=false\n" >> "$VAR_FILE"
-fi
