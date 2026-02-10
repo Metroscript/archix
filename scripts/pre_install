@@ -76,7 +76,7 @@ done
 
 WINCHECK_DISKS=$(printf "%s" "$DISKS" | sed "s,$INSTALL_DISK,,")
 for DISK in $WINCHECK_DISKS;do
-    if efibootmgr "$DISK" | grep -q "Microsoft basic data";then
+    if efibootmgr "$DISK" | grep -q "Windows Boot Manager";then
         printf "Windows installation detected on %s! Installing refind for dual-boot support..." "$DISK"
         REFIND=true
         sleep 5
