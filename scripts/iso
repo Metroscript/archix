@@ -7,23 +7,6 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 #PARTITION DISKS
 umount -AR /mnt
 
-#Set optimal storage blocking
-#if printf "%s" "$INSTALL_DISK" | grep -q "nvme";then
-#    IN_USE_PERFORMANCE=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | grep "in use" | cut -d\  -f3)
-#    if [ "$IN_USE_PERFORMANCE" != 0 ];then
-#        LBA_LOOPS=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | wc -l)
-#        for i in $(seq "$LBA_LOOPS");do
-#            LBA=$(nvme id-ns -H /dev/nvme0n1 | grep 'Relative Performance' | cut -d\  -f4,15,20,22- | sed 's/0x//' | awk '!/in use/' | awk '$2 <= 4096' | sed "${i}q;d")
-#            if [ "$(printf "%s" "$LBA" | cut -d\  -f3)" -gt "$IN_USE_PERFORMANCE" ];then
-#                continue;else
-#                IN_USE_PERFORMANCE=$(printf "%s" "$LBA" | cut -d\  -f3)
-#                SET_LBA=$(printf "%s" "$LBA" | cut -d\  -f1)
-#            fi
-#        done
-#        nvme format --lbaf="$SET_LBA" "$INSTALL_DISK"
-#    fi
-#fi
-
 wipefs -af "$INSTALL_DISK"
 
 #Create GPT table and BIOS/UEFI partition
@@ -35,7 +18,6 @@ if printf "%s" "$INSTALL_DISK" | grep -q nvme;then
     PARTITION="$INSTALL_DISK"
 fi
 ESP_PART="$PARTITION"1
-#printf "ESP_PART=%s\n" "$ESP_PART" >> "$HOME"/archix/scripts/vars
 ROOT_PART="$PARTITION"2
 
 #FORMAT FS
@@ -78,9 +60,11 @@ if [ -n "$SUBVOLS" ];then
 fi
 
 #DISCARD SETTINGS
-for i in $(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep $(printf "%s" "$INSTALL_DISK" | cut -d/ -f3) | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]");do
+DISCARD_VALUES=$(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep "$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)" | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]")
+for i in $DISCARD_VALUES;do
     if [ "$i" = 0 ];then
         NO_DISCARD=true
+        break
     fi
 done
 

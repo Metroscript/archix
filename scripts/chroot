@@ -67,16 +67,14 @@ printf "KEYMAP=%s\n" "$KEYMAP" > /etc/vconsole.conf
 # DOWNLOADS #
 #Grapics Drivers
 if lspci | grep "VGA" | grep -E "Radeon|AMD|ATI" && lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
-    $INSTALL vulkan-{radeon,intel,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver intel-media-driver lib32-vulkan-{radeon,intel}
+    $INSTALL intel-media-driver lib32-vulkan-intel lib32-vulkan-radeon libva-mesa-driver mesa opencl-rusticl-mesa vulkan-icd-loader vulkan-intel vulkan-radeon
 elif lspci | grep "VGA" | grep -E "Radeon|AMD|ATI";then
-   $INSTALL vulkan-{radeon,icd-loader} mesa{,-vdpau} opencl-rusticl-mesa libva-{mesa,vdpau}-driver lib32-vulkan-radeon
+   $INSTALL lib32-vulkan-radeon libva-mesa-driver mesa opencl-rusticl-mesa vulkan-icd-loader vulkan-radeon
 elif lspci | grep "VGA" | grep -E "Intel Corporation|UHD";then
-     $INSTALL vulkan-{intel,icd-loader} mesa opencl-rusticl-mesa libva-{intel-driver,utils,vdpau-driver} intel-media-driver lib32-vulkan-intel
+     $INSTALL intel-media-driver lib32-vulkan-intel libva-intel-driver libva-utils mesa opencl-rusticl-mesa vulkan-icd-loader vulkan-intel
 fi
 
 #System Packages
-#$INSTALL man-db wayland xorg-xwayland smartmontools strace v4l2loopback-dkms gnu-free-fonts noto-fonts ttf-{dejavu,liberation,hack-nerd,ubuntu-font-family} bash-language-server cups{,-{pk-helper,pdf,browsed}} gutenprint net-tools gparted foomatic-db-{engine,ppds,gutenprint-ppds} libsecret python-{mutagen,pysmbc} yt-dlp ffmpeg atomicparsley ufw fuse fastfetch arj binutils bzip2 cpio gzip l{hasa,rzip,z{4,ip,op}} 7zip tar un{archiver,rar,zip,arj,ace} xz zip zstd squashfs-tools ripgrep fd bat lsd fortune-mod ponysay hunspell{,-en_{au,gb,us}} libpulse keepassxc gst-{libav,plugins-{base,good}} imagemagick djvulibre ghostscript lib{heif,jxl,raw,rsvg,webp,wmf,xml2,zip} ocl-icd open{exr,jpeg2} wget jq wl-clipboard opensc btop mpv qbittorrent nvtop chrony libressl clamav apparmor audit tk python-{notify2,psutil} alacritty neovim rng-tools flatpak steam gamemode lib32-gamemode less qemu-full edk2-ovmf virt-{manager,viewer} dnsmasq vde2 bridge-utils openbsd-netcat pipewire{,-{audio,jack,pulse,alsa,libcamera,v4l2}} wireplumber gst-plugin-pipewire pacman-contrib pkgfile chrony plymouth fish pigz lbzip2
-
 cat "$HOME"/archix/packages/system.txt | $INSTALL -
 
 if [ "$LAPTOP" = true ];then
@@ -85,14 +83,13 @@ fi
 
 #Artix services
 if [ "$ARTIX" = true ];then
-    $INSTALL {sddm,cups,chrony,ufw,clamav,apparmor,audit,rng-tools,libvirt}-"$INIT" "$INIT"-system
+    $INSTALL "$HOME"/archix/packages/artix-services.txt
     if [ "$LAPTOP" = true ];then
-        $INSTALL tlp-"$INIT"
+        $INSTALL tlp-dinit
     fi
 fi
 
 #KDE Plasma
-#$INSTALL plasma-meta plymouth-kcm cryfs fwupd packagekit-qt6 xdg-desktop-portal-gtk gwenview kimageformats qt6-imageformats dolphin{,-plugins} ffmpegthumbs kde{-inotify-survey,graphics-thumbnailers,network-filesharing} kio-{admin,fuse,extras} purpose icoutils libappimage openexr perl taglib colord-kde kcolorchooser okular ebook-tools spectacle svgpart kcron ark filelight kate kcalc kcharselect kclock kdialog keditbookmarks kweather markdownpart print-manager system-config-printer skanpage tesseract-data-eng plasma-keyboard breeze5
 cat "$HOME"/archix/packages/plasma.txt | $INSTALL -
 
 pkgfile -u
@@ -161,7 +158,7 @@ sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/li
 gpasswd -a "$USERNAME" libvirt
 
 #Makepkg Optimisations
-sed -i -e 's/#MAKEFLAGS.*/MAKEFLAGS="-j\$(nproc)"/' -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
+sed -i -e "s/#MAKEFLAGS.*/MAKEFLAGS=\"-j\$(nproc)\"/" -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
 if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
 fi
@@ -225,9 +222,6 @@ for i in $KERNELS;do
             NAME="Arch Linux $SUFFIX"
         fi
         efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
-        #if [ "$FALLBACK" = true ];then
-        #    efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME Fallback" --loader "\EFI\Linux\arch-${i}-fallback.efi" --unicode
-        #fi
     fi
 done
 
@@ -241,16 +235,21 @@ if [ "$SB" = true ];then
     done
 fi
 
-#if [ "$FALLBACK" = true ];then
-#    FALLBACKNUMS=$(efibootmgr | grep "Arch Linux" | grep "Fallback" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
-#    efibootmgr -o "$NORMALNUMS""$FALLBACKNUMS""$DEFBOOTORDER"
-#else
 if [ "$REFIND" = true ];then
     $INSTALL refind
-    sbctl sign -s /usr/share/refind/drivers_x64/btrfs_x64.efi
+    for driver in /usr/share/refind/drivers_x64/*.efi;do
+        sbctl sign -s "$driver"
+    done
     sbctl sign -s /usr/share/refind/refind_x64.efi
     refind-install
     mv "$HOME"/archix/refind/* /efi/EFI/refind
+    for uki in /efi/EFI/Linux/*.efi;do
+        basename=$(basename -s .efi "$uki")
+        if echo "$uki" | grep -q "fallback";then #ignore fallback ukis
+            continue
+        fi
+        cp /efi/EFI/refind/icons/os_arch.png /efi/EFI/Linux/"$basename".png
+    done
 else
     NORMALNUMS=$(efibootmgr | grep "Arch Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
     efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"

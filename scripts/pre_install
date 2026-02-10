@@ -84,7 +84,7 @@ for DISK in $WINCHECK_DISKS;do
     fi
 done
 
-if grep -q 0 /sys/block/$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)/queue/rotational;then
+if grep -q 0 /sys/block/"$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)"/queue/rotational;then
     SSD=true;else
     SSD=false
 fi
@@ -118,60 +118,6 @@ fi
 
 SUBVOLS="@ @home @var_cache @var_log @var_libvirt_images"
 SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/lib/libvirt/images"
-#until [ "$REC_VOLS" = y ] || [ "$REC_VOLS" = n ];do
-#    printf "Use premade subvolume layout? [y/n]: "
-#    read REC_VOLS
-#done
-#if [ "$REC_VOLS" = y ];then
-#    SUBVOLS="@ @home @var_cache @var_log @var_libvirt_images"
-#    SUBVOL_PATHS="/mnt /mnt/home /mnt/var/cache /mnt/var/log /mnt/var/lib/libvirt/images"
-#elif [ "$REC_VOLS" = n ];then
-#    until [ "$NEW_SUBVOL" = n ];do
-#        unset NEW_SUBVOL SUBVOL_NAME SUBVOL_PATH SUBVOL_CONF
-#        until [ -n "$SUBVOL_NAME" ];do
-#            printf "Name of subvolume: "
-#            read SUBVOL_NAME
-#        done
-#        for i in $SUBVOLS;do
-#            if [ "$SUBVOL_NAME" = "$i" ];then
-#                printf "A subvolume by the name \"%s\" already exists!\n" "$SUBVOL_NAME"
-#                continue 2
-#            fi
-#        done
-#        until [ -n "$SUBVOL_PATH" ];do
-#            printf "Mount point for the \"%s\" subvolume. E.g /mnt/home\n" "$SUBVOL_NAME"
-#            read SUBVOL_PATH
-#        done
-#        for i in $SUBVOL_PATHS;do
-#            if [ "$SUBVOL_PATH" = "$i" ];then
-#                printf "The mount point: \"%s\" is already in use!\n" "$SUBVOL_PATH"
-#                continue 2
-#            fi
-#        done
-#        until [ "$SUBVOL_CONF" = y ] || [ "$SUBVOL_CONF" = n ];do
-#            printf "Create subvolume: \"%s\" to be mounted at: \"%s\"?\n[y/n]: " "$SUBVOL_NAME" "$SUBVOL_PATH"
-#            read SUBVOL_CONF
-#        done
-#        if [ "$SUBVOL_CONF" = y ];then
-#            if [ -z "$SUBVOLS" ];then
-#                SUBVOLS="$SUBVOL_NAME";else
-#                SUBVOLS="$SUBVOLS $SUBVOL_NAME"
-#            fi
-#            if [ -z "$SUBVOL_PATHS" ];then
-#                SUBVOL_PATHS="$SUBVOL_PATH";else
-#                SUBVOL_PATHS="$SUBVOL_PATHS $SUBVOL_PATH"
-#            fi
-#            until [ "$NEW_SUBVOL" = y ] || [ "$NEW_SUBVOL" = n ];do
-#                printf "Create another subvolume?\n[y/n]: "
-#                read NEW_SUBVOL
-#            done
-#            if [ "$NEW_SUBVOL" = y ];then
-#                continue
-#            fi
-#            fi
-#    done
-#fi
-#printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
 
 if [ -n "$SUBVOLS" ];then
     until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
@@ -284,18 +230,6 @@ done
 printf "HN=\"%s\"\n" "$HN" >> "$VAR_FILE"
 
 if [ "$ARTIX" = true ];then
-    #until [ "$INIT" = 1 ] || [ "$INIT" = 2 ] || [ "$INIT" = 3 ] || [ "$INIT" = 4 ];do
-    #    printf "Which init system to install? 1.openrc 2.runit 3.dinit 4.s6\n[1,2,3,4]: "
-    #    read INIT
-    #done
-    #if [ "$INIT" = 1 ];then
-    #    INIT=openrc
-    #elif [ "$INIT" = 2 ];then
-    #    INIT=runit
-    #elif [ "$INIT" = 3 ];then
-    #    INIT=dinit;else
-    #    INIT=s6
-    #fi
     INIT=dinit
     printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
 fi
@@ -348,7 +282,7 @@ until [ "$ADD_KERNELS" = n ];do
     done
 done
 
-if [ $(printf "%s" "$KERNELS" | wc -w) -gt 1 ];then
+if [ "$(printf "%s" "$KERNELS" | wc -w)" -gt 1 ];then
     REFIND=true
 fi
 
