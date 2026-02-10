@@ -13,7 +13,7 @@ pacman -Sy --noconfirm mokutil
 
 if mokutil --sb-state | grep "Setup Mode";then
     until [ "$SB" = y ] || [ "$SB" = n ];do
-        printf "Detected Secure Boot in setup mode. Use Secure Boot?\n[y/n]: "
+        printf "Detected Secure Boot in setup mode. Configure Secure Boot?\n[y/n]: "
         read SB
     done;else
     SB=n
@@ -77,7 +77,7 @@ done
 WINCHECK_DISKS=$(printf "%s" "$DISKS" | sed "s,$INSTALL_DISK,,")
 for DISK in $WINCHECK_DISKS;do
     if efibootmgr "$DISK" | grep -q "Windows Boot Manager";then
-        printf "Windows installation detected on %s! Installing refind for dual-boot support..." "$DISK"
+        printf "Windows installation detected on %s! Installing refind for dual-boot support...\n" "$DISK"
         REFIND=true
         sleep 5
         break

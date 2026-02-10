@@ -7,7 +7,6 @@ audit
 bash-language-server
 bat
 binutils
-bridge-utils
 btop
 bzip2
 chrony
