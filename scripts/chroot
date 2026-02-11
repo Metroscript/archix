@@ -45,15 +45,25 @@ fi
 pacman -Syu --noconfirm
 
 #Snapper Configs
+#if [ "$SNAPPER" = true ];then
+ #   $INSTALL snapper
+ #   for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
+ #       SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
+#        btrfs subvolume create "$SNAP_PATH"/.snapshots
+#        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
+#        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
+#    done
+#    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
+#fi
+
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
-    for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
-        SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
-        btrfs subvolume create "$SNAP_PATH"/.snapshots
-        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
-        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
-    done
-    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
+    mount -o subvolid=5 "$ROOT_PART" /mnt
+    btrfs subvolume create /mnt/@snapshots
+    umount /mnt
+    mount --mkdir -o defaults,noatime,subvol=/@snapshots "$ROOT_PART" /.snapshots
+    printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
+    mv "$HOME"/archix/etc/snapper /etc/
 fi
 
 #Set Language Locale (Needs work)

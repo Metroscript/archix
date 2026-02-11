@@ -30,8 +30,19 @@ if [ "$LUKS" = true ];then
     ROOT_PART=/dev/mapper/root
 fi
 printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
-mkfs.btrfs -L Root --checksum blake2 "$ROOT_PART"
+mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
 MOUNT_OPTS="noatime,compress-force=zstd:1"
+
+###
+# May be unneeded as discardable drives will mount with discard=async by default
+###
+#DISCARD_VALUES=$(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep "$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)" | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]")
+#for i in $DISCARD_VALUES;do
+#    if [ "$i" = 0 ];then
+#        continue
+#    fi
+#    MOUNT_OPTS="${MOUNT_OPTS},discard=async" #Only adds
+#done
 
 #Get UUIDS
 sleep 10 #BTRFS takes longer to generate UUIDs, this prevents readings from being blank
@@ -45,43 +56,18 @@ fi
 printf "ROOT_UUID=%s\n" "$ROOT_UUID" >> "$HOME"/archix/scripts/vars
 
 #Make subvolumes
-if [ -n "$SUBVOLS" ];then
-    mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
-    for i in $SUBVOLS;do
-        btrfs subvolume create /mnt/"$i"
-        CURRENT_ID=$(btrfs inspect-internal rootid /mnt/"$i")
-        if [ -z "$IDS" ];then
-            IDS="$CURRENT_ID"
-        else
-            IDS="$IDS $CURRENT_ID"
-        fi
-    done
-    umount /mnt
-fi
-
-#DISCARD SETTINGS
-DISCARD_VALUES=$(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep "$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)" | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]")
-for i in $DISCARD_VALUES;do
-    if [ "$i" = 0 ];then
-        NO_DISCARD=true
-        break
-    fi
+mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
+for i in $SUBVOLS;do
+    btrfs subvolume create /mnt/"$i"
 done
+umount /mnt
 
 #MOUNT
-if [ "$NO_DISCARD" != true ];then
-    MOUNT_OPTS="${MOUNT_OPTS},discard=async"
-fi
-if [ -n "$SUBVOLS" ];then
-    for i in $SUBVOLS;do
-        MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
-        ID=$(printf "%s" "$IDS" | cut -d\  -f1)
-        mount --mkdir -o "$MOUNT_OPTS",subvolid="$ID" "$ROOT_PART" "$MOUNT_POINT"
-        SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
-        IDS=$(printf "%s" "$IDS" | cut -d\  -f 2-)
-    done;else
-    mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
-fi
+for SUBVOL in $SUBVOLS;do
+    MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
+    mount --mkdir -o "$MOUNT_OPTS",subvol="$SUBVOL" "$ROOT_PART" "$MOUNT_POINT"
+    SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
+done
 
 mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /mnt/efi
 
