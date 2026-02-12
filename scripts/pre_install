@@ -12,16 +12,26 @@ pacman-key --populate
 pacman -Sy --noconfirm mokutil
 
 if mokutil --sb-state | grep "Setup Mode";then
-    until [ "$SB" = y ] || [ "$SB" = n ];do
+    while :;do
         printf "Detected Secure Boot in setup mode. Configure Secure Boot?\n[y/n]: "
-        read SB
-    done;else
-    SB=n
+
+        read -r -r SB
+
+        case "$SB" in
+            y)
+                printf "SB=true\n" >> "$VAR_FILE"
+                break
+                ;;
+            n)
+                break
+                ;;
+            *)
+                printf "Invalid input, try again.\n"
+                ;;
+        esac
+    done
 fi
-if [ "$SB" = y ];then
-    printf "SB=true\n" >> "$VAR_FILE";else
-    printf "SB=false\n" >> "$VAR_FILE"
-fi
+
 if grep -qi "Artix" /etc/os-release;then
     ARTIX=true
     printf "ARTIX=true\n" >> "$VAR_FILE" 
@@ -44,33 +54,34 @@ printf "TIMEZONE=%s\nCOUNTRY=%s\n" "$TIMEZONE" "$COUNTRY" >> "$VAR_FILE"
 
 DISKS=$(lsblk -no TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2" | "$3}')
 while :;do
-    unset INSTALL_DISK VAL_DISK DRIVE_CONF DISK_PICK
     printf "From the following, select the disk to install on:\n%s\nDisk name: " "$DISKS"
-    read INSTALL_DISK
+    read -r INSTALL_DISK
     for DISK in $(printf "%s" "$DISKS" | cut -d\  -f1);do
         if [ "$INSTALL_DISK" = "$DISK" ];then
-            VAL_DISK=true
+            VALID_DISK=true
         fi
     done
-    if [ "$VAL_DISK" = true ];then
-        until [ "$DRIVE_CONF" = y ] || [ "$DRIVE_CONF" = n ];do
+    if [ "$VALID_DISK" = true ];then
+        while :;do
             printf "Install Linux on \"%s\"? THIS WILL FORMAT AND DELETE ALL DATA!\n[y/n]: " "$INSTALL_DISK"
-            read DRIVE_CONF
-        done
-        if [ "$DRIVE_CONF" = y ];then
-            break;else
-            until [ "$DISK_PICK" = y ] || [ "$DISK_PICK" = n ];do
-                printf "Pick another disk for installation?\n[y/n]: "
-                read DISK_PICK
-            done
-            if [ "$DISK_PICK" = y ];then
-                continue;else
-                printf "EXITING INSTALLATION DUE TO NO INSTALL DISK PICKED...\n"
-                exit 1
-            fi
-        fi;else
+            read -r DRIVE_CONF
+
+            case "$DRIVE_CONF" in
+
+                y)
+                    break 2
+                    ;;
+                n)
+                    printf "Returning to drive selection menu...\n\n"
+                    unset INSTALL_DISK VALID_DISK
+                    break
+                    ;;
+                *)
+                    printf "Invalid input, try again.\n"
+                    ;;
+            esac
+        done;else
         printf "\"%s\" is not a valid installation disk!\n" "$INSTALL_DISK"
-        continue
     fi
 done
 
@@ -90,39 +101,48 @@ if grep -q 0 /sys/block/"$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)"/queue/rot
 fi
 printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
 
-until [ "$LUKS" = y ] || [ "$LUKS" = n ];do
+while :;do
     printf "Encrypt root with LUKS?\n[y/n]: "
-    read LUKS
-done
-if [ "$LUKS" = y ];then
-    printf "LUKS=true\n" >> "$VAR_FILE"
-    while :;do
-        unset LUKS_PASSWORD LUKS_PASSWD_CONF
-        until [ -n "$LUKS_PASSWORD" ];do
-            printf "Encryption password: "
-            read LUKS_PASSWORD
-        done
-        until [ -n "$LUKS_PASSWD_CONF" ];do
-            printf "Confirm encryption password: "
-            read LUKS_PASSWD_CONF
-        done
-        if [ "$LUKS_PASSWORD" = "$LUKS_PASSWD_CONF" ];then
-            printf "LUKS_PASSWORD=\"%s\"\n" "$LUKS_PASSWORD" >> "$VAR_FILE"
-            break;else
-            printf "PASSWORDS DID NOT MATCH!\n"
-            continue
-        fi
-    done;else
-    printf "LUKS=false\n" >> "$VAR_FILE"
-fi
+    read -r LUKS
 
-SUBVOLS="@ @home @opt @root @srv @usr_local @var"
-SUBVOL_PATHS="/mnt /mnt/home /mnt/opt /mnt/root /mnt/srv /mnt/usr/local /mnt/var"
+    case "$LUKS" in
+
+        y)
+            while :;do
+                printf "Enter encryption password: "
+                read -r LUKS_PASSWORD
+                printf "Confirm encryption password: "
+                read -r LUKS_PASSWD_CONF
+                case "$LUKS_PASSWD_CONF" in
+
+                    "$LUKS_PASSWORD")
+                        printf "LUKS=true\nLUKS_PASSWORD=\"%s\"\n" "$LUKS_PASSWORD" >> "$VAR_FILE"
+                        break
+                        ;;
+                    *)
+                        printf "PASSWORDS DID NOT MATCH!\n"
+                        unset LUKS_PASSWORD LUKS_PASSWD_CONF
+                        ;;
+                esac
+            done
+            break
+            ;;
+        n)
+            break
+            ;;
+        *)
+            printf "Invalid input, try again.\n"
+            ;;
+    esac
+done
+
+SUBVOLS="@ @home @opt @root @srv @usr_local @var_cache @var_log @var_libvirt_images @var_log"
+SUBVOL_PATHS="/mnt /mnt/home /mnt/opt /mnt/root /mnt/srv /mnt/usr/local /mnt/var/cache /mnt/var/lib/libvirt/images/ /mnt/var/log"
 
 if [ -n "$SUBVOLS" ];then
     until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
         printf "Install snapper for automated subvolume snapshots?\n[y/n]: "
-        read SNAPPER
+        read -r SNAPPER
     done
     if [ "$SNAPPER" = y ];then
         SNAPPER=true;else
@@ -135,7 +155,7 @@ if [ -n "$SUBVOLS" ];then
          #   SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
           #  until [ "$SNAP_CONF" = y ] || [ "$SNAP_CONF" = n ];do
            #     printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$SNAP_MOUNT_POINT"
-            #    read SNAP_CONF
+            #    read -r SNAP_CONF
             #done
             #if [ "$SNAP_CONF" = y ];then
             #    if [ -z "$SNAPPER_CONFIGS" ];then
@@ -150,65 +170,91 @@ if [ -n "$SUBVOLS" ];then
 
 fi
 
-until [ "$UN_CONF" = y ];do
-    unset UN_CONF USERNAME
-    until [ -n "$USERNAME" ];do
-        printf "Username for standard user: "
-        read USERNAME
-    done
-    until [ "$UN_CONF" = y ] || [ "$UN_CONF" = n ];do
+
+while :;do
+    printf "Enter username for standard user: "
+    read -r USERNAME
+    USERNAME=$(printf "%s" "$USERNAME" | tr '[:upper:]' '[:lower:]')
+    if [[ "$USERNAME" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]];then #enforce username requirements
         printf "Create user: \"%s\"?\n[y/n]: " "$USERNAME"
-        read UN_CONF
-    done
+        read -r USERNAME_CONF
+        case "$USERNAME_CONF" in
+
+            y)
+                while :;do
+                    until [ -n "$PASSWORD" ];do
+                        printf "Enter password for %s: " "$USERNAME"
+                        read -r PASSWORD
+                    done
+                    printf "Confirm Password for standard user: "
+                    read -r PASSWD_CONF
+                    case "$PASSWD_CONF" in
+
+                        "$PASSWORD")
+                            printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+                            break
+                            ;;
+                        *)
+                            printf "PASSWORDS DID NOT MATCH!\n"
+                            unset PASSWORD
+                            ;;
+                    esac
+                done
+                break
+                ;;
+            n)
+                printf "Returning to user creation menu...\n\n"
+                unset USERNAME
+                break
+                ;;
+            *)
+                printf "Invalid input, try again.\n"
+                ;;
+        esac
+    else
+        printf "Invalid username\n"
+    fi
 done
 
 while :;do
-    unset PASSWORD PASSWD_CONF
-    until [ -n "$PASSWORD" ];do
-        printf "Password for standard user: "
-        read PASSWORD
-    done
-    until [ -n "$PASSWD_CONF" ];do
-        printf "Confirm Password for standard user: "
-        read PASSWD_CONF
-    done
-    if [ "$PASSWORD" = "$PASSWD_CONF" ];then
-        break;else
-        printf "PASSWORDS DID NOT MATCH!\n"
-        continue
-    fi
-done
-printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
-
-until [ "$RPASSWD" = y ] || [ "$RPASSWD" = n ];do
     printf "Set root password? (Root account will be locked otherwise)\n[y/n]: "
-    read RPASSWD
-done
-if [ "$RPASSWD" = y ];then
-    while :;do
-        unset ROOT_PASSWORD ROOT_PASSWD_CONF
-        until [ -n "$ROOT_PASSWORD" ];do
-            printf "Password for root: "
-            read ROOT_PASSWORD
-        done
-        until [ -n "$ROOT_PASSWD_CONF" ];do
-            printf "Confirm Password for root: "
-            read ROOT_PASSWD_CONF
-        done
-        if [ "$ROOT_PASSWORD" = "$ROOT_PASSWD_CONF" ];then
-            printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
-            break;else
-            printf "PASSWORDS DID NOT MATCH!\n"
-            continue
-        fi
-    done
-fi
+    read -r RPASSWD
+    case "$RPASSWD" in
 
-printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
+        y)
+            while :;do
+                until [ -n "$ROOT_PASSWORD" ];do
+                    printf "Enter password for root: "
+                    read -r ROOT_PASSWORD
+                done
+                printf "Confirm Password for root: "
+                read -r ROOT_PASSWD_CONF
+                case "$ROOT_PASSWD_CONF" in
+
+                "$ROOT_PASSWORD")
+                    printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
+                    break
+                    ;;
+                *)
+                    printf "PASSWORDS DID NOT MATCH!\n"
+                    unset ROOT_PASSWORD
+                    ;;
+                esac
+            done
+            break
+            ;;
+        n)
+            break
+            ;;
+        *)
+            printf "Invalid input, try again.\n"
+            ;;
+    esac
+done
 
 until [ "$PABIN" = y ] || [ "$PABIN" = n ];do
     printf "Install paru as a binary rather than compiling? (Faster install)\n[y/n]: "
-    read PABIN
+    read -r PABIN
 done
 if [ "$PABIN" = y ];then
     PABIN=true;else
@@ -216,40 +262,63 @@ if [ "$PABIN" = y ];then
 fi
 printf "PABIN=%s\n" "$PABIN" >> "$VAR_FILE"
 
-until [ "$HN_CONF" = y ];do
-    unset HN_CONF HN
-    until [ -n "$HN" ];do
-        printf "Enter Hostname for install: "
-        read HN
-    done
-    until [ "$HN_CONF" = y ] || [ "$HN_CONF" = n ];do
-        printf "Use Hostname: \"%s\"?\n[y/n]: " "$HN"
-        read HN_CONF
-    done
+while :;do
+    printf "Enter a hostname for this device: "
+    read -r HOSTNAME
+    HOSTNAME=$(printf "%s" "$HOSTNAME" | tr '[:upper:]' '[:lower:]')
+    if [[ "$HOSTNAME" =~ ^[a-z][a-z0-9_.-]{0,62}[a-z0-9]$ ]];then #enforce hostname requirements
+        while :;do
+            printf "Use Hostname: \"%s\"?\n[y/n]: " "$HOSTNAME"
+            read -r HN_CONF
+            case "$HN_CONF" in
+
+            y)
+                printf "HN=\"%s\"\n" "$HOSTNAME" >> "$VAR_FILE"
+                break 2
+                ;;
+            n)
+                unset HOSTNAME
+                break
+                ;;
+            *)
+                printf "Invalid input, try again.\n"
+                ;;
+            esac
+        done
+    else
+        printf "Invalid hostname.\n"
+    fi
 done
-printf "HN=\"%s\"\n" "$HN" >> "$VAR_FILE"
 
 if [ "$ARTIX" = true ];then
     INIT=dinit
     printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
 fi
-until [ "$DOAS" = y ] || [ "$DOAS" = n ];do
+
+while :;do
     printf "Install doas as a sudo replacement?\n[y/n]: "
-    read DOAS
+    read -r DOAS
+    case "$DOAS" in
+
+    y)
+        printf "DOAS=true\n" >> "$VAR_FILE"
+        sed -i "/stuff/a alias sudo doas" "$HOME"/archix/config/fish/config.fish
+        break
+        ;;
+    n)
+        break
+        ;;
+    *)
+        printf "Invalid input, try again.\n"
+        ;;
+    esac
 done
-if [ "$DOAS" = y ];then
-    DOAS=true
-    sed -i "/stuff/a alias sudo doas" "$HOME"/archix/config/fish/config.fish
-elif [ "$DOAS" = n ];then
-    DOAS=false
-fi
-printf "DOAS=%s\n" "$DOAS" >> "$VAR_FILE"
 
 until [ "$ADD_KERNELS" = n ];do
     unset ADD_KERNELS
     until [ "$KERNEL" = 1 ] || [ "$KERNEL" = 2 ] || [ "$KERNEL" = 3 ] || [ "$KERNEL" = 4 ] || [ "$KERNEL" = 5 ] || [ "$KERNEL" = 6 ];do
         printf "Which Linux kernel would you like to install? 1.Stock 2.LTS 3.Zen 4.Hardened 5.RT 6.RT-LTS\n[1,2,3,4,5,6]: "
-        read KERNEL
+        read -r KERNEL
     done
 
     if [ "$KERNEL" = 1 ];then
@@ -278,7 +347,7 @@ until [ "$ADD_KERNELS" = n ];do
     fi
     until [ "$ADD_KERNELS" = y ] || [ "$ADD_KERNELS" = n ];do
         printf "Install additional kernels? (Refind will be installed to manage boot entries if multiple kernels are installed)\n[y/n]: "
-        read ADD_KERNELS
+        read -r ADD_KERNELS
     done
 done
 
@@ -299,44 +368,66 @@ printf "KERNELS=\"%s\"\nHEADERS=\"%s\"\n" "$KERNELS" "$HEADERS" >> "$VAR_FILE"
 
 find /usr/share/kbd/keymaps/ -type f -exec basename -s .map.gz {} \; | sed -e '/.inc/d' -e '/README/d' -e '/compose/d' -e '/.doc/d' -e '/.m4/d' -e '/hcesar/d' | sort > keymaps.txt
 
-until [ "$KEYMAPCONF" = y ] || [ "$KEYMAPCONF" = n ];do
+while :;do
     printf "Configuring console keymap: Use 'us' keyboard layout (default)?\n[y/n]: "
-    read KEYMAPCONF
-done
-if [ "$KEYMAPCONF" = y ];then
-    KEYMAP=us
-elif [ "$KEYMAPCONF" = n ];then
-    while true;do
-        unset CUSTKEYMAPCONF
-        printf "Enter keyboard keymap to use. Type 'list' to show available keymaps: "
-        read CUSTKEYMAP
-        if [ "$CUSTKEYMAP" = "list" ];then
-            less keymaps.txt
-        elif ! grep -x "$CUSTKEYMAP" keymaps.txt;then
-            printf "Please enter a valid keymap!\n"
-        else
-            until [ "$CUSTKEYMAPCONF" = y ] || [ "$CUSTKEYMAPCONF" = n ];do
-                printf "Use the '%s' keymap?\n[y/n]: " "$CUSTKEYMAP"
-                read CUSTKEYMAPCONF
+    read -r KEYMAPCONF
+    case "$KEYMAPCONF" in
+        y)
+            KEYMAP=us
+            break
+            ;;
+        n)
+            while :;do
+                printf "Enter keyboard keymap to use. Type 'list' to show available keymaps: "
+                read -r CUSTKEYMAP
+                if [ "$CUSTKEYMAP" = "list" ];then
+                    less keymaps.txt
+                elif ! grep -x "$CUSTKEYMAP" keymaps.txt;then
+                    printf "Please enter a valid keymap!\n"
+                else
+                    while :;do
+                        printf "Use the '%s' keymap?\n[y/n]: " "$CUSTKEYMAP"
+                        read -r CUSTKEYMAPCONF
+                        case "$CUSTKEYMAPCONF" in
+
+                            y)
+                                KEYMAP=$CUSTKEYMAP
+                                break 3
+                                ;;
+                            n)
+                                break
+                                ;;
+                            *)
+                                printf "Invalid input, try again.\n"
+                                ;;
+                        esac
+                    done
+                fi
             done
-            if [ "$CUSTKEYMAPCONF" = y ];then
-                KEYMAP=$CUSTKEYMAP
-                break
-            fi
-        fi
-    done
-fi
+            ;;
+        *)
+            printf "Invalid input, try again.\n"
+            ;;
+    esac
+done
 printf "KEYMAP=%s\n" "$KEYMAP" >> "$VAR_FILE"
 
-until [ "$FALLBACK" = y ] || [ "$FALLBACK" = n ];do
+while :;do
     printf "Configure mkinitcpio to create a fallback image? (image will be stored at /efi/EFI/BOOT/BOOTx64.efi if refind is not installed)\n[y/n]: "
-    read FALLBACK
+    read -r FALLBACK
+    case "$FALLBACK" in
+
+    y)
+        printf "FALLBACK=true\n" >> "$VAR_FILE"
+        break
+        ;;
+    n)
+        break
+        ;;
+    *)
+        printf "Invalid input, try again.\n"
+        ;;
+    esac
 done
-if [ "$FALLBACK" = y ];then
-    FALLBACK=true
-elif [ "$FALLBACK" = n ];then
-    FALLBACK=false
-fi
-printf "FALLBACK=%s\n" "$FALLBACK" >> "$VAR_FILE"
 
 printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"

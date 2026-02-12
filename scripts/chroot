@@ -59,11 +59,13 @@ pacman -Syu --noconfirm
 if [ "$SNAPPER" = true ];then
     $INSTALL snapper
     mount -o subvolid=5 "$ROOT_PART" /mnt
-    btrfs subvolume create /mnt/@snapshots
+    btrfs subvolume create /mnt/@.snapshots
     umount /mnt
-    mount --mkdir -o defaults,noatime,subvol=/@snapshots "$ROOT_PART" /.snapshots
-    printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
-    mv "$HOME"/archix/etc/snapper /etc/
+    mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
+    chmod 750 /.snapshots
+    printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
+    mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
+    mv "$HOME"/archix/etc/conf.d/snapper /etc/conf.d
 fi
 
 #Set Language Locale (Needs work)
@@ -106,8 +108,6 @@ pkgfile -u
 
 #Flatpak Setup
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-flatpak install -y flathub io.gitlab.librewolf-community
 
 #Set Timezone
 mv /etc/chrony.conf /etc/chrony.conf.bak
@@ -252,6 +252,7 @@ if [ "$REFIND" = true ];then
     done
     sbctl sign -s /usr/share/refind/refind_x64.efi
     refind-install
+    refind-mkdefault
     mv "$HOME"/archix/refind/* /efi/EFI/refind
     for uki in /efi/EFI/Linux/*.efi;do
         basename=$(basename -s .efi "$uki")

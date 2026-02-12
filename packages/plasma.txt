@@ -1,4 +1,5 @@
 ark
+bluedevil
 breeze5
 colord-kde
 cryfs

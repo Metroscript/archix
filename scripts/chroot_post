@@ -44,12 +44,12 @@ fi
 SERVICES="NetworkManager ufw chronyd sddm $CRON apparmor auditd rngd libvirtd virtlogd$TLP"
 
 if [ "$ARTIX" != true ];then
-    SERVICES="cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"
+    SERVICES="bluetooth cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"
     for SERVICE in $SERVICES;do
         systemctl enable "$SERVICE"
     done
 else
-    SERVICES="cupsd clamd freshclam $SERVICES"
+    SERVICES="bluetoothd cupsd clamd freshclam $SERVICES"
     for SERVICE in $SERVICES;do
         ln -s /etc/dinit.d/"$SERVICE" /etc/dinit.d/boot.d/
     done
