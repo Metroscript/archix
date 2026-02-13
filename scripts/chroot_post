@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 . "$HOME"/archix/scripts/vars
 
 #password :wheel perms
@@ -41,7 +41,7 @@ if [ "$LAPTOP" = true ];then
     TLP=" tlp"
 fi
 
-SERVICES="NetworkManager ufw chronyd sddm $CRON apparmor auditd rngd libvirtd virtlogd$TLP"
+SERVICES="NetworkManager ufw chronyd sddm cronie apparmor auditd rngd libvirtd virtlogd$TLP"
 
 if [ "$ARTIX" != true ];then
     SERVICES="bluetooth cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer $SERVICES"

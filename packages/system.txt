@@ -10,6 +10,7 @@ binutils
 bluez
 bluez-utils
 btop
+btrfs-assistant
 bzip2
 chrony
 chrony
@@ -121,7 +122,6 @@ vde2
 virt-manager
 virt-viewer
 wayland
-wget
 wireplumber
 wl-clipboard
 xorg-xwayland

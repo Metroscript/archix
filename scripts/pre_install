@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 REPO="$HOME"/archix
 VAR_FILE="$REPO"/scripts/vars
 if ! [ -f "$VAR_FILE" ];then
@@ -95,12 +95,6 @@ for DISK in $WINCHECK_DISKS;do
     fi
 done
 
-if grep -q 0 /sys/block/"$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)"/queue/rotational;then
-    SSD=true;else
-    SSD=false
-fi
-printf "INSTALL_DISK=%s\nSSD=%s\n" "$INSTALL_DISK" "$SSD" >> "$VAR_FILE"
-
 while :;do
     printf "Encrypt root with LUKS?\n[y/n]: "
     read -r LUKS
@@ -136,40 +130,10 @@ while :;do
     esac
 done
 
-SUBVOLS="@ @home @opt @root @srv @usr_local @var_cache @var_log @var_libvirt_images @var_log"
-SUBVOL_PATHS="/mnt /mnt/home /mnt/opt /mnt/root /mnt/srv /mnt/usr/local /mnt/var/cache /mnt/var/lib/libvirt/images/ /mnt/var/log"
+SUBVOLS="@ @home @opt @root @srv @usr_local @var_cache @var_lib_libvirt_images @var_log @var_spool @var_tmp"
+SUBVOL_PATHS="/mnt /mnt/home /mnt/opt /mnt/root /mnt/srv /mnt/usr/local /mnt/var/cache /mnt/var/lib/libvirt/images/ /mnt/var/log /mnt/var/spool /mnt/var/tmp"
 
-if [ -n "$SUBVOLS" ];then
-    until [ "$SNAPPER" = y ] || [ "$SNAPPER" = n ];do
-        printf "Install snapper for automated subvolume snapshots?\n[y/n]: "
-        read -r SNAPPER
-    done
-    if [ "$SNAPPER" = y ];then
-        SNAPPER=true;else
-        SNAPPER=false
-    fi
-    printf "SNAPPER=%s\n" "$SNAPPER" >> "$VAR_FILE"
-    #if [ "$SNAPPER" = true ];then
-        #for i in $SUBVOLS;do
-        #    unset SNAP_CONF
-         #   SNAP_MOUNT_POINT=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f1)
-          #  until [ "$SNAP_CONF" = y ] || [ "$SNAP_CONF" = n ];do
-           #     printf "Make Snapper config for subvolume: \"%s\" mounted at \"%s\"?\n[y/n]: " "$i" "$SNAP_MOUNT_POINT"
-            #    read -r SNAP_CONF
-            #done
-            #if [ "$SNAP_CONF" = y ];then
-            #    if [ -z "$SNAPPER_CONFIGS" ];then
-             #       SNAPPER_CONFIGS="$i";else
-              #      SNAPPER_CONFIGS="$SNAPPER_CONFIGS $i"
-               # fi
-            #fi
-            #SUBVOL_PATHS=$(printf "%s" "$SUBVOL_PATHS" | cut -d\  -f 2-)
-        #done
-        #printf "SNAPPER_CONFIGS=\"%s\"\n" "$SNAPPER_CONFIGS" >> "$VAR_FILE"
-   # fi
-
-fi
-
+printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
 
 while :;do
     printf "Enter username for standard user: "
@@ -382,7 +346,7 @@ while :;do
                 read -r CUSTKEYMAP
                 if [ "$CUSTKEYMAP" = "list" ];then
                     less keymaps.txt
-                elif ! grep -x "$CUSTKEYMAP" keymaps.txt;then
+                elif ! grep -qx "$CUSTKEYMAP" keymaps.txt;then
                     printf "Please enter a valid keymap!\n"
                 else
                     while :;do
@@ -429,5 +393,3 @@ while :;do
         ;;
     esac
 done
-
-printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"

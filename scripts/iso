@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 . "$HOME"/archix/scripts/vars
 
 #Speed up install
@@ -71,12 +71,18 @@ done
 
 mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /mnt/efi
 
+#Because root is created when mounting the subvolume, it doesn't have proper permissions by default
+chmod 740 /mnt/root
+
+#Disable COW before files are written
+chattr +C /mnt/var/lib/libvirt/images
+
 FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-firmware-mellanox linux-firmware-nfp linux-firmware-qcom linux-firmware-qlogic"
 
 #Install Base root
 if [ "$ARTIX" = true ];then
-    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode eukify
+    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft btrfs-progs git efibootmgr "$CPU"-ucode eukify
     fstabgen -U /mnt >> /mnt/etc/fstab;else
-    pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft wget btrfs-progs git efibootmgr "$CPU"-ucode systemd-ukify
+    pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft btrfs-progs git efibootmgr "$CPU"-ucode systemd-ukify
     genfstab -U /mnt >> /mnt/etc/fstab
 fi

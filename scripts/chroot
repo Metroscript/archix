@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 . "$HOME"/archix/scripts/vars
 
 INSTALL="pacman -S --needed --noconfirm"
@@ -12,6 +12,7 @@ fi
 
 #Pacman Config
 sed -i -e 's/#Color/Color/' -i -e '/Color/a ILoveCandy' -i -e 's/#Verbose/Verbose/' -i -e 's/#Parallel/Parallel/' -i -e "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+mv "$HOME"/archix/etc/conf.d/pacman-contrib /etc/conf.d
 
 if [ "$ARTIX" = true ];then
    sed -i -z -e 's,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,\[galaxy\]\nInclude = /etc/pacman.d/mirrorlist,' -i -z -e 's,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist,\[lib32\]\n#Include = /etc/pacman.d/mirrorlist\n\n#Arch Repos\n\n#\[extra-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[extra\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib-testing\]\n#Include = /etc/pacman.d/mirrorlist-arch\n\n#\[multilib\]\n#Include = /etc/pacman.d/mirrorlist-arch,' /etc/pacman.conf
@@ -44,29 +45,16 @@ fi
 #Update to get repos
 pacman -Syu --noconfirm
 
-#Snapper Configs
-#if [ "$SNAPPER" = true ];then
- #   $INSTALL snapper
- #   for SNAPPER_CONFIG in $SNAPPER_CONFIGS;do
- #       SNAP_PATH=$(findmnt -nlt btrfs | grep "subvol=/$SNAPPER_CONFIG" | cut -d\  -f1)
-#        btrfs subvolume create "$SNAP_PATH"/.snapshots
-#        cp /usr/share/snapper/config-templates/default /etc/snapper/configs/"$SNAPPER_CONFIG"
-#        sed -i -e "s|SUBVOLUME=\"/\"|SUBVOLUME=\"$SNAP_PATH\"|" -e "s|SYNC_ACL=\"no\"|SYNC_ACL=\"yes\"|" /etc/snapper/configs/"$SNAPPER_CONFIG"
-#    done
-#    sed -i "s/SNAPPER_CONFIGS=\"\"/SNAPPER_CONFIGS=\"$SNAPPER_CONFIGS\"/" /etc/conf.d/snapper
-#fi
-
-if [ "$SNAPPER" = true ];then
-    $INSTALL snapper
-    mount -o subvolid=5 "$ROOT_PART" /mnt
-    btrfs subvolume create /mnt/@.snapshots
-    umount /mnt
-    mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
-    chmod 750 /.snapshots
-    printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
-    mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
-    mv "$HOME"/archix/etc/conf.d/snapper /etc/conf.d
-fi
+#Snapper Setup
+$INSTALL snapper
+mount -o subvolid=5 "$ROOT_PART" /mnt
+btrfs subvolume create /mnt/@.snapshots
+umount /mnt
+mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
+chmod 750 /.snapshots
+printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
+mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
+mv "$HOME"/archix/etc/conf.d/snapper /etc/conf.d
 
 #Set Language Locale (Needs work)
 sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
@@ -111,7 +99,7 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 
 #Set Timezone
 mv /etc/chrony.conf /etc/chrony.conf.bak
-wget "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/etc/chrony.conf" -O /etc/chrony.conf #GrapheneOS Chrony Settings
+curl "https://raw.githubusercontent.com/GrapheneOS/infrastructure/refs/heads/main/etc/chrony.conf" -o /etc/chrony.conf #GrapheneOS Chrony Settings
 ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 hwclock --systohc
 
@@ -161,7 +149,6 @@ printf "b08dfa6083e7567a1921a715000001fb" > /etc/machine-id
 printf "b08dfa6083e7567a1921a715000001fb" > /var/lib/dbus/machine-id
 
 #Qemu setup
-chattr +C /var/lib/libvirt/images
 sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
 sed -i 's/#group.*/group = "libvirt"/' /etc/libvirt/qemu.conf
 sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/libvirt/network.conf
@@ -175,6 +162,8 @@ fi
 
 #Get current hooks for cleaner mkinitcpio configuration
 HOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
+
+sed -i "s/MODULES=()/MODULES=(btrfs)/" /etc/mkinitcpio.conf
 
 # Remove keymap hook since sd-vconsole does the same thing
 if [ "$ARTIX" != true ];then
@@ -191,7 +180,7 @@ sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 #UKI
 mv "$HOME"/archix/etc/cmdline.d /etc/
 
-sed -i -e "s,ROOT_UUID,$ROOT_UUID," -i -e "s,ROOT_SUBVOLUME_ID,$(btrfs inspect-internal rootid /)," /etc/cmdline.d/root.conf
+sed -i "s,ROOT_UUID,$ROOT_UUID," /etc/cmdline.d/root.conf
 
 if [ "$LUKS" = true ];then
     if [ "$ARTIX" = true ];then
