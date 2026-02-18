@@ -100,7 +100,6 @@ python-pysmbc
 qbittorrent
 qemu-full
 ripgrep
-rng-tools
 smartmontools
 squashfs-tools
 steam

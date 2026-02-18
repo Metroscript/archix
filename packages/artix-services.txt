@@ -5,6 +5,5 @@ clamav-dinit
 cups-dinit
 dinit-system
 libvirt-dinit
-rng-tools-dinit
 sddm-dinit
 ufw-dinit

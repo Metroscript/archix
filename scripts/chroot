@@ -130,7 +130,10 @@ fi
 gpasswd -a "$USERNAME" gamemode
 
 #Set SDDM theme
-printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
+if [ "$ARTIX" = true ];then
+    $INSTALL sddm sddm-kcm
+    printf "[Theme]\nCurrent=breeze" > /etc/sddm.conf
+fi
 
 #Apparmor & Audit Config
 sed -i 's/#write-cache/write-cache/' /etc/apparmor/parser.conf
@@ -227,7 +230,7 @@ done
 if [ "$SB" = true ];then
     $INSTALL sbctl
     sbctl create-keys
-    sbctl enroll-keys -m
+    sbctl enroll-keys -m -f || sbctl enroll-keys -m #Try to install vendor keys first to mitigate errors
     sbctl verify 2>/dev/null | awk '/✗/ {print $2}' | while IFS= read -r FILE;do
         sbctl sign -s "$FILE"
     done
@@ -235,7 +238,7 @@ fi
 
 if [ "$REFIND" = true ];then
     $INSTALL refind
-    for driver in /usr/share/refind/drivers_x64/*.efi;do
+    for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
         sbctl sign -s "$driver"
     done
     sbctl sign -s /usr/share/refind/refind_x64.efi
