@@ -81,7 +81,7 @@ FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-fi
 
 #Install Base root
 if [ "$ARTIX" = true ];then
-    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft btrfs-progs git efibootmgr "$CPU"-ucode eukify
+    basestrap /mnt base base-devel "$INIT"-system $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager-"$INIT" iptables-nft btrfs-progs git efibootmgr "$CPU"-ucode eukify egummiboot
     fstabgen -U /mnt >> /mnt/etc/fstab;else
     pacstrap -K /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio networkmanager iptables-nft btrfs-progs git efibootmgr "$CPU"-ucode systemd-ukify
     genfstab -U /mnt >> /mnt/etc/fstab
