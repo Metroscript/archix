@@ -18,7 +18,7 @@ Before using archix, ensure that the drive you are planning to install Linux on 
 
 - Flatpak is configured with the flathub repository in both system and user contexts
 
-- The system swap will be half of the RAM as zram if there is more than 8GB of RAM, otherwise a swapfile 2GB in size will be created
+- Zram compressed swap will be created equal to half of the system's RAM
 
 - IPv6 privacy extentions are enabled
 

@@ -16,8 +16,7 @@ freshclam
 #Hardened /tmp
 if [ "$ARTIX" = true ];then
     cp /usr/lib/dinit.d/tmpfs /etc/dinit.d
-    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,nosuid|' /etc/dinit.d/tmpfs;else
-    printf "tmpfs /tmp tmpfs defaults,nodev,nosuid 0 0\n" >> /etc/fstab
+    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,nosuid|' /etc/dinit.d/tmpfs
 fi
 
 #Firewall settings
@@ -34,6 +33,7 @@ fi
 if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled ];then
     mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook
 fi
+
 mkinitcpio -P
 
 mv "$HOME"/archix/etc/conf.d/pacman-contrib /etc/conf.d
@@ -51,7 +51,7 @@ if [ "$ARTIX" != true ];then
         systemctl enable "$SERVICE"
     done
 else
-    SERVICES="bluetoothd cupsd clamd freshclam sddm $SERVICES"
+    SERVICES="bluetoothd cupsd clamd freshclam sddm zram $SERVICES"
     for SERVICE in $SERVICES;do
         ln -s /etc/dinit.d/"$SERVICE" /etc/dinit.d/boot.d/
     done

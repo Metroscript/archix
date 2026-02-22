@@ -1,0 +1,6 @@
+type		    = scripted
+command		    = /etc/dinit.d/scripts/zram start
+stop-command	= /etc/dinit.d/scripts/zram stop
+logfile		    = /var/log/dinit/zram.log
+depends-on	    = early-devices.target
+after		    = early-fs-local.target
