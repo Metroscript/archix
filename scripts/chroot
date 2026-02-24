@@ -268,28 +268,6 @@ else
     $INSTALL zram-generator
     mv "$HOME"/archix/etc/systemd/zram-generator.conf.d /etc/systemd
 fi
-printf "zswap.enabled=0\n" > /etc/cmdline.d/disable_zswap.conf
-sed -i 's/vm.swappiness=.*/vm.swappiness=180/' /etc/sysctl.d/99-memory.conf
-printf "#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0\n" >> /etc/sysctl.d/99-memory.conf
-
-#RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
-#if [ "$RAM" -ge 8000000 ];then
-    #cp -R -t /etc/ "$HOME"/archix/etc/modules-load.d "$HOME"/archix/etc/modprobe.d "$HOME"/archix/etc/udev
-    #sed -i "s/ZRAM_SIZE/$((RAM/2))K/" /etc/udev/rules.d/99-zram.rules
-    #printf "zswap.enabled=0\n" > /etc/cmdline.d/disable_zswap.conf
-    #sed -i 's/vm.swappiness=.*/vm.swappiness=180/' /etc/sysctl.d/99-memory.conf
-    #printf "#Optimise zram performance\nvm.watermark_boost_factor=0\nvm.watermark_scale_factor=125\nvm.page-cluster=0\n" >> /etc/sysctl.d/99-memory.conf
-    #printf "\n/dev/zram0 none swap defaults,discard,pri=100 0 0\n" >> /etc/fstab
-#else
-    #2GB Predetermined swap file
-    #cd /
-    #mount -o subvolid=5 "$ROOT_PART" /mnt
-    #btrfs subvolume create /mnt/@.swap
-    #umount /mnt
-    #mount --mkdir -o defaults,noatime,subvol=/@.swap "$ROOT_PART" /.swap
-    #btrfs filesystem mkswapfile --size 2G --uuid clear /.swap/swapfile
-    #printf "\nUUID=%s /.swap btrfs defaults,noatime,subvol=/@.swap 0 0\n/.swap/swapfile none swap defaults 0 0\n" "$ROOT_UUID" >> /etc/fstab
-#fi
 
 cp -r "$HOME"/archix /home/"$USERNAME"
 chown -R "$USERNAME": /home/"$USERNAME"/archix

@@ -3,7 +3,7 @@
 case "$1" in
     start)
         modprobe zram
-        zramctl /dev/zram0 --algorithm zstd --size "$(($(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)/2))KiB"
+        zramctl /dev/zram0 --algorithm lz4 --size "$(($(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)/2))KiB"
         mkswap -U clear /dev/zram0
         swapon --discard --priority 100 /dev/zram0
         ;;

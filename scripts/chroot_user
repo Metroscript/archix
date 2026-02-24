@@ -26,9 +26,11 @@ fi
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 #Paru
-if [ "$PABIN" = true ];then
-    PARU="paru-bin";else
-    PARU="paru"
+RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)
+
+if [ "$RAM" -ge 8000000 ];then #prefer compilation if enough memory is available
+    PARU="paru";else
+    PARU="paru-bin"
 fi
 
 git clone https://aur.archlinux.org/"$PARU".git

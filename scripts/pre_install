@@ -216,16 +216,6 @@ while :;do
     esac
 done
 
-until [ "$PABIN" = y ] || [ "$PABIN" = n ];do
-    printf "Install paru as a binary rather than compiling? (Faster install)\n[y/n]: "
-    read -r PABIN
-done
-if [ "$PABIN" = y ];then
-    PABIN=true;else
-    PABIN=false
-fi
-printf "PABIN=%s\n" "$PABIN" >> "$VAR_FILE"
-
 while :;do
     printf "Enter a hostname for this device: "
     read -r HOSTNAME
