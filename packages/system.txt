@@ -59,6 +59,7 @@ libjxl
 libpulse
 libraw
 libressl
+libreoffice-still
 librsvg
 libsecret
 libwebp

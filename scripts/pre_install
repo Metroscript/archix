@@ -5,6 +5,11 @@ if ! [ -f "$VAR_FILE" ];then
     touch "$VAR_FILE"
 fi
 
+if [ "$(whoami)" != "root" ];then
+    printf "This script must be run as the root user.\n"
+    exit 1
+fi
+
 printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
 pacman-key --init
@@ -15,7 +20,7 @@ if mokutil --sb-state | grep "Setup Mode";then
     while :;do
         printf "Detected Secure Boot in setup mode. Configure Secure Boot?\n[y/n]: "
 
-        read -r -r SB
+        read -r SB
 
         case "$SB" in
             y)
