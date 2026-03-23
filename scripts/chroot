@@ -210,9 +210,11 @@ fi
 DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
 
 for i in $KERNELS;do
+    DISTRO=arch
     sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' /etc/mkinitcpio.d/"$i".preset
     if [ "$ARTIX" = true ];then # Replash boot splash
-        sed -i 's:default_options.*:default_options="--splash /usr/share/egummiboot/bootctl/splash-artix.bmp":' /etc/mkinitcpio.d/"$i".preset
+        DISTRO=artix
+        sed -i -e 's:default_options.*:default_options="--splash /usr/share/egummiboot/bootctl/splash-artix.bmp":' -i -e "s:default_uki.*:default_uki=\"/efi/EFI/Linux/${DISTRO}-${i}.efi\":" /etc/mkinitcpio.d/"$i".preset
     fi
     if [ "$FALLBACK" = true ];then
         sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback')/PRESETS=('default' 'fallback')/" -i -e 's/#fallback_options/fallback_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
@@ -222,12 +224,12 @@ for i in $KERNELS;do
     fi
     mkinitcpio -p "$i"
     if [ "$REFIND" != true ];then
-        SUFFIX=$(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')
+        SUFFIX=" $(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')"
         if [ "$SUFFIX" = "Linux" ];then
-            NAME="Arch Linux";else
-            NAME="Arch Linux $SUFFIX"
+            SUFFIX=""
         fi
-        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\arch-${i}.efi" --unicode
+        NAME="${DISTRO^} Linux $SUFFIX"
+        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\\${DISTRO}-${i}.efi" --unicode
     fi
 done
 
@@ -250,6 +252,7 @@ if [ "$REFIND" = true ];then
     refind-install
     refind-mkdefault
     mv "$HOME"/archix/refind/* /efi/EFI/refind
+    sed -i "s/arch/${DISTRO}" /efi/EFI/refind/refind.conf
     for uki in /efi/EFI/Linux/*.efi;do
         basename=$(basename -s .efi "$uki")
         if echo "$uki" | grep -q "fallback";then #ignore fallback ukis

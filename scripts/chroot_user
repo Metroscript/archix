@@ -6,9 +6,9 @@ cd "$HOME" || { printf "Failed to cd into %s" "$HOME" ; exit 1 ; }
 #config
 mv "$HOME"/archix/config "$HOME"/.config
 fish -c 'set -U fish_greeting'
-if [ "$ARTIX" = true ];then
-    printf "[Desktop Entry]\nExec=/usr/bin/pkill -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pidwait -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pipewire & /usr/bin/pipewire-pulse & /usr/bin/sleep 1 ; /usr/bin/wireplumber &\nName=Pipewire\nType=Application\nX-KDE-AutostartScript=true\n" > ~/.config/autostart/pipewire.desktop
-fi
+#if [ "$ARTIX" = true ];then
+#    printf "[Desktop Entry]\nExec=/usr/bin/pkill -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pidwait -u \"\$USER\" -x pipewire\|wireplumber ; /usr/bin/pipewire & /usr/bin/pipewire-pulse & /usr/bin/sleep 1 ; /usr/bin/wireplumber &\nName=Pipewire\nType=Application\nX-KDE-AutostartScript=true\n" > ~/.config/autostart/pipewire.desktop
+#fi
 #Install Thumbfast
 mkdir "$HOME"/.config/mpv/scripts
 cd "$HOME"/.config/mpv/scripts || { printf "Failed to cd into %s/.config/mpv/scripts" "$HOME" ; exit 1 ; }
@@ -24,6 +24,10 @@ if ! [ -d "$HOME"/Games ];then
 fi
 
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+#Configure dinit user services for pipewire
+mkdir -p "$HOME"/.config/dinit.d/boot.d
+ln -s /etc/dinit.d/user/pipewire /etc/dinit.d/user/pipewire-pulse /etc/dinit.d/user/wireplumber -t "$HOME"/.config/dinit.d/boot.d/
 
 #Paru
 RAM=$(grep -Po 'MemTotal:\s*\K\d+' /proc/meminfo)

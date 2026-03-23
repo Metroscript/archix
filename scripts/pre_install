@@ -78,6 +78,7 @@ while :;do
             case "$DRIVE_CONF" in
 
                 y)
+                    printf "INSTALL_DISK=%s\n" "$INSTALL_DISK" >> "$VAR_FILE"
                     break 2
                     ;;
                 n)

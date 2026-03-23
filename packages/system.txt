@@ -107,6 +107,7 @@ steam
 strace
 tar
 tk
+tree
 ttf-dejavu
 ttf-hack-nerd
 ttf-liberation

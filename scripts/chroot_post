@@ -15,7 +15,7 @@ freshclam
 
 #Hardened /tmp
 if [ "$ARTIX" = true ];then
-    cp /usr/lib/dinit.d/tmpfs /etc/dinit.d
+    cp /usr/lib/dinit.d/dinit-user-spawn /usr/lib/dinit.d/tmpfs -t /etc/dinit.d
     sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,nosuid|' /etc/dinit.d/tmpfs
 fi
 
@@ -51,7 +51,7 @@ if [ "$ARTIX" != true ];then
         systemctl enable "$SERVICE"
     done
 else
-    SERVICES="bluetoothd cupsd clamd freshclam sddm zram $SERVICES"
+    SERVICES="bluetoothd cupsd clamd dinit-user-spawn freshclam sddm zram $SERVICES"
     for SERVICE in $SERVICES;do
         ln -s /etc/dinit.d/"$SERVICE" /etc/dinit.d/boot.d/
     done

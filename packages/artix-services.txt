@@ -5,6 +5,9 @@ clamav-dinit
 cups-dinit
 dinit-system
 libvirt-dinit
+pipewire-dinit
+pipewire-pulse-dinit
 sddm-dinit
 ufw-dinit
 xorg-server
+wireplumber-dinit
