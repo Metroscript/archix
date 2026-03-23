@@ -12,6 +12,10 @@ fi
 
 printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
+if dmesg | grep -qi "virtio";then
+    printf "VM=true\n" >> "$VAR_FILE"
+fi
+
 pacman-key --init
 pacman-key --populate
 pacman -Sy --noconfirm mokutil
