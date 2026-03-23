@@ -7,3 +7,4 @@ dinit-system
 libvirt-dinit
 sddm-dinit
 ufw-dinit
+xorg-server
