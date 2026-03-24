@@ -228,7 +228,7 @@ for i in $KERNELS;do
         if [ "$SUFFIX" = "Linux" ];then
             SUFFIX=""
         fi
-        NAME="${DISTRO^} Linux $SUFFIX"
+        NAME="${DISTRO^} Linux$SUFFIX"
         efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\\${DISTRO}-${i}.efi" --unicode
     fi
 done
@@ -245,14 +245,16 @@ fi
 
 if [ "$REFIND" = true ];then
     $INSTALL refind
-    for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
-        sbctl sign -s "$driver"
-    done
-    sbctl sign -s /usr/share/refind/refind_x64.efi
+    if [ "$SB" = true ];then
+        for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
+            sbctl sign -s "$driver"
+        done
+        sbctl sign -s /usr/share/refind/refind_x64.efi
+    fi
     refind-install
     refind-mkdefault
     mv "$HOME"/archix/refind/* /efi/EFI/refind
-    sed -i "s/arch/${DISTRO}" /efi/EFI/refind/refind.conf
+    sed -i "s/arch/${DISTRO}/" /efi/EFI/refind/refind.conf
     for uki in /efi/EFI/Linux/*.efi;do
         basename=$(basename -s .efi "$uki")
         if echo "$uki" | grep -q "fallback";then #ignore fallback ukis
@@ -261,7 +263,7 @@ if [ "$REFIND" = true ];then
         cp /efi/EFI/refind/icons/os_arch.png /efi/EFI/Linux/"$basename".png
     done
 else
-    NORMALNUMS=$(efibootmgr | grep "Arch Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
+    NORMALNUMS=$(efibootmgr | grep "${DISTRO^} Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
     efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"
 fi
 
