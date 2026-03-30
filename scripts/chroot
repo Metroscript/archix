@@ -174,7 +174,7 @@ HOOKS=${HOOKS/ fsck/}
 
 # Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unecessary
 if [ "$ARTIX" != true ];then
-    HOOKS=${HOOKS/ base/}
+    HOOKS=${HOOKS/base /}
     HOOKS=${HOOKS/ keymap/}
 fi
 
@@ -204,9 +204,9 @@ sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 
 SECURITY_CMDLINE=$(cat /etc/cmdline.d/security.conf)
 
-if [ "$CPU_BRAND" = "amd" ];then
+if [ "$CPU" = "amd" ];then
     SECURITY_CMDLINE="amd_iommu=force_isolation $SECURITY_CMDLINE"
-elif [ "$CPU_BRAND" = "intel" ];then
+elif [ "$CPU" = "intel" ];then
     SECURITY_CMDLINE="intel_iommu=on $SECURITY_CMDLINE"
 fi
 

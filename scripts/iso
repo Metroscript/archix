@@ -72,7 +72,7 @@ done
 mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /mnt/efi
 
 #Because root is created when mounting the subvolume, it doesn't have proper permissions by default
-chmod 740 /mnt/root
+chmod 750 /mnt/root
 
 chmod 1777 /mnt/var/tmp
 

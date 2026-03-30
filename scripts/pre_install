@@ -1,6 +1,7 @@
 #!/bin/bash
 REPO="$HOME"/archix
 VAR_FILE="$REPO"/scripts/vars
+
 if ! [ -f "$VAR_FILE" ];then
     touch "$VAR_FILE"
 fi
@@ -16,11 +17,18 @@ if dmesg | grep -qi "virtio";then
     printf "VM=true\n" >> "$VAR_FILE"
 fi
 
+if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
+    mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
+fi
+if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook ];then
+    mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled
+fi
+
 pacman-key --init
 pacman-key --populate
-pacman -Sy --noconfirm mokutil
+pacman -Sy --noconfirm sbctl
 
-if mokutil --sb-state | grep "Setup Mode";then
+if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -i "enabled";then
     while :;do
         printf "Detected Secure Boot in setup mode. Configure Secure Boot?\n[y/n]: "
 
