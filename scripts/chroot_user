@@ -50,4 +50,9 @@ if [ "$DOAS" = true ];then
     sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
 fi
 
-paru -S --needed --noconfirm brave-bin
+#Install brave with makepkg to avoid errors with paru causing install to have no browser
+git clone https://aur.archlinux.org/brave-bin.git
+cd brave-bin || { printf "Failed to cd into brave-bin" ; exit 1 ; }
+makepkg -si --noconfirm
+cd "$HOME" || { printf "Failed to cd into %s" "$HOME" ; exit 1 ; }
+rm -rf brave-bin

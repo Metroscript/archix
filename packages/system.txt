@@ -36,7 +36,6 @@ fuse
 gamemode
 ghostscript
 gnu-free-fonts
-gparted
 gst-libav
 gst-plugin-pipewire
 gst-plugins-base
@@ -100,7 +99,6 @@ python-psutil
 python-pysmbc
 qbittorrent
 qemu-full
-ripgrep
 smartmontools
 squashfs-tools
 steam

@@ -1,7 +1,7 @@
 #!/bin/bash
 . "$HOME"/archix/scripts/vars
 
-INSTALL="pacman -S --needed --noconfirm"
+INSTALL="pacman -S --needed --noconfirm --disable-download-timeout"
 
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
     mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
@@ -49,7 +49,7 @@ btrfs subvolume create /mnt/@.snapshots
 umount /mnt
 mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
 chmod 750 /.snapshots
-printf "\nUUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
+printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
 mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
 mv "$HOME"/archix/etc/conf.d/snapper /etc/conf.d
 
@@ -59,7 +59,7 @@ printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
 locale-gen
 
 #vconsole
-printf "KEYMAP=%s\n" "$KEYMAP" > /etc/vconsole.conf
+printf "KEYMAP=%s\nFONT=default8x16\n" "$KEYMAP" > /etc/vconsole.conf
 
 # DOWNLOADS #
 #Grapics Drivers
@@ -163,23 +163,23 @@ if [ "$DOAS" = true ];then
 fi
 
 #Get current hooks for cleaner mkinitcpio configuration
-HOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
+OLDHOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
+
+HOOKS=$OLDHOOKS
 
 sed -i "s/MODULES=()/MODULES=(btrfs)/" /etc/mkinitcpio.conf
 
-# Remove keymap hook since sd-vconsole does the same thing
+#Remove the fsck as it's unneeded for a btrfs root partition
+HOOKS=${HOOKS/ fsck/}
+
+# Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unecessary
 if [ "$ARTIX" != true ];then
-    OLDHOOKS=$HOOKS
+    HOOKS=${HOOKS/ base/}
     HOOKS=${HOOKS/ keymap/}
-    sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 fi
 
-#Plymouth Setup
-OLDHOOKS=$HOOKS
-
+#Plymouth Hooks
 HOOKS=${HOOKS/autodetect/plymouth autodetect}
-
-sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 
 #UKI
 mv "$HOME"/archix/etc/cmdline.d /etc/
@@ -194,12 +194,23 @@ if [ "$LUKS" = true ];then
         ENCRYPT_HOOK="sd-encrypt"
         sed -i -e "s/root/rd.luks.name=$CRYPT_PART_UUID=root rd.luks.options=timeout=0,password-echo=no root/" -i -e "s/ rw/,x-systemd.device-timeout=0 rw/" /etc/cmdline.d/root.conf
     fi
-    OLDHOOKS=$HOOKS
     HOOKS=${HOOKS/filesystems/$ENCRYPT_HOOK filesystems}
-    sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 fi
 
-sed -i "s/CPU_BRAND/$CPU/" /etc/cmdline.d/security.conf
+#Write new hooks to mkinitcpio.conf
+sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
+
+#Enable platform-specific iommu settings
+
+SECURITY_CMDLINE=$(cat /etc/cmdline.d/security.conf)
+
+if [ "$CPU_BRAND" = "amd" ];then
+    SECURITY_CMDLINE="amd_iommu=force_isolation $SECURITY_CMDLINE"
+elif [ "$CPU_BRAND" = "intel" ];then
+    SECURITY_CMDLINE="intel_iommu=on $SECURITY_CMDLINE"
+fi
+
+printf "%s\n" "$SECURITY_CMDLINE" > /etc/cmdline.d/security.conf
 
 mkdir -p /efi/EFI/Linux
 

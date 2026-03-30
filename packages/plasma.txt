@@ -32,6 +32,7 @@ markdownpart
 okular
 openexr
 packagekit-qt6
+partitionmanager
 perl
 plasma-keyboard
 plasma-meta

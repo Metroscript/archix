@@ -74,7 +74,9 @@ mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /
 #Because root is created when mounting the subvolume, it doesn't have proper permissions by default
 chmod 740 /mnt/root
 
-#Disable COW before files are written
+chmod 1777 /mnt/var/tmp
+
+#Disable COW before files are written to the images folder
 chattr +C /mnt/var/lib/libvirt/images
 
 FIRMWARE="linux-firmware linux-firmware-liquidio linux-firmware-marvell linux-firmware-mellanox linux-firmware-nfp linux-firmware-qcom linux-firmware-qlogic"
