@@ -13,10 +13,6 @@ fi
 
 printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
-if dmesg | grep -qi "virtio";then
-    printf "VM=true\n" >> "$VAR_FILE"
-fi
-
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
     mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
 fi
@@ -26,7 +22,11 @@ fi
 
 pacman-key --init
 pacman-key --populate
-pacman -Sy --noconfirm sbctl
+pacman -Sy --noconfirm sbctl virt-what
+
+if [ "$(virt-what)" != "" ];then
+    printf "VM=true\n" >> "$VAR_FILE"
+fi
 
 if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -i "enabled";then
     while :;do
@@ -50,7 +50,6 @@ if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -i "enabled";then
 fi
 
 if grep -qi "Artix" /etc/os-release;then
-    ARTIX=true
     printf "ARTIX=true\n" >> "$VAR_FILE" 
 fi
 
@@ -262,11 +261,6 @@ while :;do
     fi
 done
 
-if [ "$ARTIX" = true ];then
-    INIT=dinit
-    printf "INIT=%s\n" "$INIT" >> "$VAR_FILE"
-fi
-
 while :;do
     printf "Install doas as a sudo replacement?\n[y/n]: "
     read -r DOAS
@@ -287,24 +281,39 @@ while :;do
 done
 
 until [ "$ADD_KERNELS" = n ];do
-    unset ADD_KERNELS
-    until [ "$KERNEL" = 1 ] || [ "$KERNEL" = 2 ] || [ "$KERNEL" = 3 ] || [ "$KERNEL" = 4 ] || [ "$KERNEL" = 5 ] || [ "$KERNEL" = 6 ];do
-        printf "Which Linux kernel would you like to install? 1.Stock 2.LTS 3.Zen 4.Hardened 5.RT 6.RT-LTS\n[1,2,3,4,5,6]: "
+    while :;do
+        printf "Select a Linux kernel to install: 1.Stock 2.LTS 3.Zen 4.Hardened 5.RT 6.RT-LTS\n[1,2,3,4,5,6]: "
         read -r KERNEL
+        case "$KERNEL" in
+            1)
+                KERNEL=linux
+                break
+                ;;
+            2)
+                KERNEL=linux-lts
+                break
+                ;;
+            3)
+                KERNEL=linux-zen
+                break
+                ;;
+            4)
+                KERNEL=linux-hardened
+                break
+                ;;
+            5)
+                KERNEL=linux-rt
+                break
+                ;;
+            6)
+                KERNEL=linux-rt-lts
+                break
+                ;;
+            *)
+                printf "Not a valid kernel!\n"
+                ;;
+        esac
     done
-
-    if [ "$KERNEL" = 1 ];then
-        KERNEL=linux
-    elif [ "$KERNEL" = 2 ];then
-        KERNEL=linux-lts
-    elif [ "$KERNEL" = 3 ];then
-        KERNEL=linux-zen
-    elif [ "$KERNEL" = 4 ];then
-        KERNEL=linux-hardened
-    elif [ "$KERNEL" = 5 ];then
-        KERNEL=linux-rt;else
-        KERNEL=linux-rt-lts
-    fi
 
     for i in $KERNELS;do
         if [ "$KERNEL" = "$i" ];then
@@ -317,9 +326,21 @@ until [ "$ADD_KERNELS" = n ];do
         KERNELS="$KERNEL";else
         KERNELS="$KERNELS $KERNEL"
     fi
-    until [ "$ADD_KERNELS" = y ] || [ "$ADD_KERNELS" = n ];do
+
+    while :;do
         printf "Install additional kernels? (Refind will be installed to manage boot entries if multiple kernels are installed)\n[y/n]: "
         read -r ADD_KERNELS
+        case "$ADD_KERNELS" in
+            y)
+                break
+                ;;
+            n)
+                break
+                ;;
+            *)
+                printf "Invalid answer, please choose again."
+                ;;
+        esac
     done
 done
 
@@ -330,6 +351,7 @@ fi
 if [ "$REFIND" = true ];then
     printf "REFIND=%s\n" "$REFIND" >> "$VAR_FILE"
 fi
+
 for i in $KERNELS;do
     if [ -z "$HEADERS" ];then
         HEADERS="${i}-headers";else
