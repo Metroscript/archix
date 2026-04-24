@@ -15,8 +15,10 @@ freshclam
 
 #Hardened /tmp
 if [ "$ARTIX" = true ];then
-    cp /usr/lib/dinit.d/dinit-user-spawn /usr/lib/dinit.d/tmpfs -t /etc/dinit.d
-    sed -i 's|command.*|command   = /bin/mount -t tmpfs tmpfs /tmp -o defaults,nodev,nosuid|' /etc/dinit.d/tmpfs
+    cp /usr/lib/dinit.d/dinit-user-spawn /usr/lib/dinit.d/tmpmount -t /etc/dinit.d
+    cp /usr/lib/dinit/tmpmount /etc/dinit.d/scripts/
+    sed -i 's,/usr/lib/dinit/tmpmount,/etc/dinit.d/scripts/tmpmount,' /etc/dinit.d/tmpmount
+    sed -i "s.tmpfs /tmp.tmpfs /tmp -o defaults,nosuid,nodev." /etc/dinit.d/scripts/tmpmount
 fi
 
 #Firewall settings
