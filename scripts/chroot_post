@@ -7,28 +7,129 @@ if [ "$DOAS" = true ];then
     sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
 fi
 
-#Allows freshclam to work (may only be needed for systemd)
-touch /var/log/clamav/freshclam.log
-chmod 600 /var/log/clamav/freshclam.log
-chown clamav /var/log/clamav/freshclam.log
-freshclam
-
-#Hardened /tmp
-if [ "$ARTIX" = true ];then
-    cp /usr/lib/dinit.d/dinit-user-spawn /usr/lib/dinit.d/tmpmount -t /etc/dinit.d
-    cp /usr/lib/dinit/tmpmount /etc/dinit.d/scripts/
-    sed -i 's,/usr/lib/dinit/tmpmount,/etc/dinit.d/scripts/tmpmount,' /etc/dinit.d/tmpmount
-    sed -i "s.tmpfs /tmp.tmpfs /tmp -o defaults,nosuid,nodev." /etc/dinit.d/scripts/tmpmount
-fi
-
-#Firewall settings
-ufw default deny incoming
-ufw default allow outgoing
-ufw enable
-
-# Regenerate the UKIs incase mkinitcpio has been updated and remove initramfs files from /boot
 rm /boot/initramfs* #Remove initramfs generated during pacstrap
 
+##########################################################
+################### UKI and Boot Config ##################
+##########################################################
+
+#Get current hooks for cleaner mkinitcpio configuration
+OLDHOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
+
+HOOKS=$OLDHOOKS
+
+sed -i "s/MODULES=()/MODULES=(btrfs)/" /etc/mkinitcpio.conf
+
+#Remove the fsck as it's unneeded for a btrfs root partition
+HOOKS=${HOOKS/ fsck/}
+
+# Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unecessary
+if [ "$ARTIX" != true ];then
+    HOOKS=${HOOKS/base /}
+    HOOKS=${HOOKS/ keymap/}
+fi
+
+#Plymouth Hooks
+HOOKS=${HOOKS/autodetect/plymouth autodetect}
+
+#UKI
+mv "$HOME"/archix/etc/cmdline.d /etc/
+
+sed -i "s,ROOT_UUID,$ROOT_UUID," /etc/cmdline.d/root.conf
+
+if [ "$LUKS" = true ];then
+    if [ "$ARTIX" = true ];then
+        ENCRYPT_HOOK="encrypt"
+        sed -i "s/root/cryptdevice=UUID=$CRYPT_PART_UUID:root root/" /etc/cmdline.d/root.conf
+    else
+        ENCRYPT_HOOK="sd-encrypt"
+        sed -i -e "s/root/rd.luks.name=$CRYPT_PART_UUID=root rd.luks.options=timeout=0,password-echo=no root/" -i -e "s/ rw/,x-systemd.device-timeout=0 rw/" /etc/cmdline.d/root.conf
+    fi
+    HOOKS=${HOOKS/filesystems/$ENCRYPT_HOOK filesystems}
+fi
+
+#Write new hooks to mkinitcpio.conf
+sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
+
+#Enable platform-specific iommu settings
+
+SECURITY_CMDLINE=$(cat /etc/cmdline.d/security.conf)
+
+#if [ "$CPU" = "amd" ];then
+#    SECURITY_CMDLINE="amd_iommu=force_isolation $SECURITY_CMDLINE"
+if [ "$CPU" = "intel" ];then
+    SECURITY_CMDLINE="intel_iommu=on $SECURITY_CMDLINE"
+fi
+
+printf "%s\n" "$SECURITY_CMDLINE" > /etc/cmdline.d/security.conf
+
+mkdir -p /efi/EFI/Linux
+
+if [ "$FALLBACK" = true ] && [ "$REFIND" != true ];then
+    mkdir /efi/EFI/BOOT
+fi
+
+DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
+
+for i in $KERNELS;do
+    DISTRO=arch
+    sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' /etc/mkinitcpio.d/"$i".preset
+    if [ "$ARTIX" = true ];then # Replash boot splash
+        DISTRO=artix
+        sed -i -e 's:default_options.*:default_options="--splash /usr/share/egummiboot/bootctl/splash-artix.bmp":' -i -e "s:default_uki.*:default_uki=\"/efi/EFI/Linux/${DISTRO}-${i}.efi\":" /etc/mkinitcpio.d/"$i".preset
+    fi
+    if [ "$FALLBACK" = true ];then
+        sed -i -e "s/PRESETS=('default')/#PRESETS=('default')/" -i -e "s/#PRESETS=('default' 'fallback')/PRESETS=('default' 'fallback')/" -i -e 's/#fallback_options/fallback_options/' -i -e 's/#fallback_uki/fallback_uki/' /etc/mkinitcpio.d/"$i".preset
+        if [ "$REFIND" != true ];then
+            sed -i 's,fallback_uki.*,fallback_uki="/efi/EFI/BOOT/BOOTx64.efi",'
+        fi
+    fi
+    mkinitcpio -p "$i"
+    if [ "$REFIND" != true ];then
+        SUFFIX=" $(printf "%s" "$i" | cut -d- -f2 | awk '{ print toupper(substr($0,1,1)) substr($0,2) }')"
+        if [ "$SUFFIX" = "Linux" ];then
+            SUFFIX=""
+        fi
+        NAME="${DISTRO^} Linux$SUFFIX"
+        efibootmgr --create --disk "$INSTALL_DISK" --part 1 --label "$NAME" --loader "\EFI\Linux\\${DISTRO}-${i}.efi" --unicode
+    fi
+done
+
+#Secure Boot Setup
+if [ "$SB" = true ];then
+    pacman -S --needed --noconfirm --disable-download-timeout sbctl
+    sbctl create-keys
+    sbctl enroll-keys -m -f || sbctl enroll-keys -m #Try to install vendor keys first to prevent boot errors
+    sbctl verify 2>/dev/null | awk '/✗/ {print $2}' | while IFS= read -r FILE;do
+        sbctl sign -s "$FILE"
+    done
+fi
+
+if [ "$REFIND" = true ];then
+    pacman -S --needed --noconfirm --disable-download-timeout refind
+    if [ "$SB" = true ];then
+        for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
+            sbctl sign -s "$driver"
+        done
+        sbctl sign -s /usr/share/refind/refind_x64.efi
+    fi
+    refind-install
+    refind-mkdefault
+    mv "$HOME"/archix/refind/* /efi/EFI/refind
+    sed -i "s/arch/${DISTRO}/" /efi/EFI/refind/refind.conf
+    for uki in /efi/EFI/Linux/*.efi;do
+        basename=$(basename -s .efi "$uki")
+        if echo "$uki" | grep -q "fallback";then #ignore fallback ukis
+            continue
+        fi
+        cp /efi/EFI/refind/icons/os_arch.png /efi/EFI/Linux/"$basename".png
+    done
+else
+    NORMALNUMS=$(efibootmgr | grep "${DISTRO^} Linux" | sed "/Fallback/d" | cut -d\* -f1 | sed "s/Boot//" | tr "\n" ",")
+    efibootmgr -o "$NORMALNUMS""$DEFBOOTORDER"
+fi
+
+#Renable automatic initramfs regen in pacman
 if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled ];then
     mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled /usr/share/libalpm/hooks/90-mkinitcpio-install.hook
 fi
@@ -36,11 +137,10 @@ if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled ];then
     mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook
 fi
 
-mkinitcpio -P
+##############################################
+################ Init services ###############
+##############################################
 
-mv "$HOME"/archix/etc/conf.d/pacman-contrib /etc/conf.d
-
-#Init Services
 if [ "$LAPTOP" = true ];then
     TLP=" tlp"
 fi

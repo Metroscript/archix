@@ -37,22 +37,22 @@ if [ "$RAM" -ge 8000000 ];then #prefer compilation if enough memory is available
     PARU="paru-bin"
 fi
 
-git clone https://aur.archlinux.org/"$PARU".git
-cd "$PARU" || { printf "Failed to cd into %s" "$PARU" ; exit 1 ; }
-makepkg -si --noconfirm
-cd "$HOME" || { printf "Failed to cd into %s" "$HOME" ; exit 1 ; }
-rm -rf "$PARU"
-mkdir "$HOME"/.config/paru/
+aur_install () {
+    local package="$1"
+    git clone https://aur.archlinux.org/"$package".git
+    cd "$package" || { printf "Failed to cd into %s" "$package"; exit 1 ; }
+    makepkg -si --noconfirm
+    cd "$HOME" || { printf "Failed to cd into %s" "$HOME" ; exit 1 ; }
+    rm -rf "$package"
+}
 
+aur_install "$PARU"
+
+mkdir "$HOME"/.config/paru/
 cp /etc/paru.conf .config/paru/
 sed -i -e 's/#Clean/Clean/' -i -e 's/#UpgradeMenu/UpgradeMenu/' -i -e 's/#News/News/' "$HOME"/.config/paru/paru.conf
 if [ "$DOAS" = true ];then
     sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
 fi
 
-#Install brave with makepkg to avoid errors with paru causing install to have no browser
-git clone https://aur.archlinux.org/brave-bin.git
-cd brave-bin || { printf "Failed to cd into brave-bin" ; exit 1 ; }
-makepkg -si --noconfirm
-cd "$HOME" || { printf "Failed to cd into %s" "$HOME" ; exit 1 ; }
-rm -rf brave-bin
+aur_install brave-bin

@@ -28,7 +28,7 @@ if [ "$(virt-what)" != "" ];then
     printf "VM=true\n" >> "$VAR_FILE"
 fi
 
-if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -i "enabled";then
+if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -qi "enabled";then
     while :;do
         printf "Detected Secure Boot in setup mode. Configure Secure Boot?\n[y/n]: "
 

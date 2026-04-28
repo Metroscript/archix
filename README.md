@@ -46,7 +46,7 @@ Before using archix, ensure that the drive you are planning to install Linux on 
 
 - Artix will be installed using the dinit init system.
 
-- Drivers for Nvidia GPUs will not be installed; they will must be manually installed after using archix.
+- Drivers for Nvidia GPUs will not be installed; they must be manually installed after using archix.
 
 # Usage
 
