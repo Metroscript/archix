@@ -185,8 +185,6 @@ while :;do
                 ;;
             n)
                 printf "Returning to user creation menu...\n\n"
-                unset USERNAME
-                break
                 ;;
             *)
                 printf "Invalid input, try again.\n"
@@ -248,7 +246,6 @@ while :;do
                 break 2
                 ;;
             n)
-                unset HOSTNAME
                 break
                 ;;
             *)

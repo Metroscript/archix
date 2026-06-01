@@ -99,7 +99,7 @@ done
 if [ "$SB" = true ];then
     pacman -S --needed --noconfirm --disable-download-timeout sbctl
     sbctl create-keys
-    sbctl enroll-keys -m -f || sbctl enroll-keys -m #Try to install vendor keys first to prevent boot errors
+    sbctl enroll-keys -m -f || sbctl enroll-keys -m #Try to enroll with vendor keys first to prevent boot errors
     sbctl verify 2>/dev/null | awk '/✗/ {print $2}' | while IFS= read -r FILE;do
         sbctl sign -s "$FILE"
     done
@@ -108,12 +108,12 @@ fi
 if [ "$REFIND" = true ];then
     pacman -S --needed --noconfirm --disable-download-timeout refind
     if [ "$SB" = true ];then
-        for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
-            sbctl sign -s "$driver"
-        done
+        #for driver in /usr/share/refind/drivers_x64/*.efi;do #Removes the need to manually sign if updating refind afterwards
+        #    sbctl sign -s "$driver"
+        #done
         sbctl sign -s /usr/share/refind/refind_x64.efi
     fi
-    refind-install
+    refind-install --nodrivers
     refind-mkdefault
     mv "$HOME"/archix/refind/* /efi/EFI/refind
     sed -i "s/arch/${DISTRO}/" /efi/EFI/refind/refind.conf
@@ -153,7 +153,7 @@ if [ "$ARTIX" != true ];then
         systemctl enable "$SERVICE"
     done
 else
-    SERVICES="bluetoothd cupsd clamd dinit-user-spawn freshclam sddm zram $SERVICES"
+    SERVICES="bluetoothd cupsd clamd userspawn freshclam sddm zram $SERVICES"
     for SERVICE in $SERVICES;do
         ln -s /etc/dinit.d/"$SERVICE" /etc/dinit.d/boot.d/
     done

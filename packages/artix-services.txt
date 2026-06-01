@@ -10,5 +10,6 @@ pipewire-dinit
 pipewire-pulse-dinit
 sddm-dinit
 ufw-dinit
+userspawn-dinit
 xorg-server
 wireplumber-dinit
