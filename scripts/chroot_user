@@ -11,6 +11,7 @@ fish -c 'set -U fish_greeting'
 if [ "$ARTIX" = true ];then
     mkdir -p "$HOME"/.config/dinit.d/boot.d
     ln -s /etc/dinit.d/user/pipewire /etc/dinit.d/user/pipewire-pulse /etc/dinit.d/user/wireplumber -t "$HOME"/.config/dinit.d/boot.d/
+    printf "type = internal\nwaits-for.d: ./boot.d/\n" > .config/dinit.d/boot
 fi
 
 #Install Thumbfast
