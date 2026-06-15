@@ -18,6 +18,7 @@ if [ "$ARTIX" = true ];then
    pacman -Syu --needed --noconfirm artix-archlinux-support
    sed -i -e "/\[lib32\]/,/Include/"'s/^#//' -i -e "/\[extra\]/,/Include/"'s/^#//' /etc/pacman.conf
    pacman-key --populate
+   printf "xorg-server" >> "$HOME"/archix/packages/plasma.txt
 fi
 
 #Sort Mirrors
