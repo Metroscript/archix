@@ -33,17 +33,6 @@ printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
 mkfs.btrfs -L Root --checksum sha256 "$ROOT_PART"
 MOUNT_OPTS="noatime,compress-force=zstd:1"
 
-###
-# May be unneeded as discardable drives will mount with discard=async by default
-###
-#DISCARD_VALUES=$(lsblk -no TYPE,KNAME,DISC-GRAN,DISC-MAX | sed "/part/d" | grep "$(printf "%s" "$INSTALL_DISK" | cut -d/ -f3)" | awk '$1=="disk"{print ""$3" "$4}' | tr -Cd "[:digit:][:space:]")
-#for i in $DISCARD_VALUES;do
-#    if [ "$i" = 0 ];then
-#        continue
-#    fi
-#    MOUNT_OPTS="${MOUNT_OPTS},discard=async" #Only adds
-#done
-
 #Get UUIDS
 sleep 10 #BTRFS takes longer to generate UUIDs, this prevents readings from being blank
 if [ "$LUKS" = true ];then

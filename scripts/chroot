@@ -76,19 +76,19 @@ if [ "$VM" = true ];then
     $INSTALL vulkan-virtio lib32-vulkan-virtio
 fi
 
+if [ "$LAPTOP" = true ];then
+    printf "tlp" >> "$HOME"/archix/packages/system.txt
+    if [ "$ARTIX" = true ];then
+        printf "tlp-dinit" >>"$HOME"/archix/packages/artix-services.txt
+    fi
+fi
+
 #System Packages
 cat "$HOME"/archix/packages/system.txt | $INSTALL -
-
-if [ "$LAPTOP" = true ];then
-    $INSTALL tlp
-fi
 
 #Artix services
 if [ "$ARTIX" = true ];then
     cat "$HOME"/archix/packages/artix-services.txt | $INSTALL -
-    if [ "$LAPTOP" = true ];then
-        $INSTALL tlp-dinit
-    fi
 fi
 
 #KDE Plasma
@@ -117,7 +117,7 @@ fi
 useradd -mG wheel -s /bin/fish "$USERNAME"
 printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
 
-#:wheel permissions (nopasswd)
+#Allow the wheel group to use sudo without password input
 if [ "$DOAS" = true ];then
     $INSTALL opendoas
     printf "permit nopass :wheel\n" > /etc/doas.conf
@@ -148,10 +148,6 @@ sed -i '/log_group/a log_group = audit' /etc/audit/auditd.conf
 
 #Networkmanager IPv6 Privacy Features
 printf "[connection]\nipv6.ip6-privacy=2\n" > /etc/NetworkManager/conf.d/ipv6-privacy-features.conf
-
-#Whonix Machine ID
-printf "b08dfa6083e7567a1921a715000001fb\n" > /etc/machine-id
-printf "b08dfa6083e7567a1921a715000001fb\n" > /var/lib/dbus/machine-id
 
 #Qemu setup
 sed -i -e 's/#unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' -i -e 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' -i -e 's/#unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' /etc/libvirt/libvirtd.conf
@@ -193,9 +189,7 @@ if [ "$ARTIX" = true ];then
 fi
 
 #Firewall settings
-ufw default deny incoming
-ufw default allow outgoing
-ufw enable
+firewall-offline-cmd --set-default-zone=drop
 
 cp -r "$HOME"/archix /home/"$USERNAME"
 chown -R "$USERNAME": /home/"$USERNAME"/archix

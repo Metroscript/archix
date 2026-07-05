@@ -142,7 +142,7 @@ if [ "$LAPTOP" = true ];then
     TLP=" tlp"
 fi
 
-SERVICES="NetworkManager ufw chronyd cronie apparmor auditd libvirtd virtlogd$TLP"
+SERVICES="NetworkManager firewalld chronyd cronie apparmor auditd libvirtd virtlogd$TLP"
 
 if [ "$ARTIX" != true ];then
     SERVICES="bluetooth cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer plasmalogin $SERVICES"

@@ -26,6 +26,7 @@ edk2-ovmf
 fastfetch
 fd
 ffmpeg
+firewalld
 fish
 flatpak
 foomatic-db-engine
@@ -112,7 +113,6 @@ ttf-dejavu
 ttf-hack-nerd
 ttf-liberation
 ttf-ubuntu-font-family
-ufw
 unace
 unarchiver
 unarj
