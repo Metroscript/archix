@@ -18,12 +18,12 @@ OLDHOOKS=$(grep "HOOKS" /etc/mkinitcpio.conf | grep -v "#")
 
 HOOKS=$OLDHOOKS
 
-sed -i "s/MODULES=()/MODULES=(btrfs)/" /etc/mkinitcpio.conf
+#sed -i "s/MODULES=()/MODULES=(btrfs)/" /etc/mkinitcpio.conf
 
-#Remove the fsck as it's unneeded for a btrfs root partition
+#Remove fsck as it's unused when booting a btrfs root partition
 HOOKS=${HOOKS/ fsck/}
 
-# Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unecessary
+# Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unnecessary
 if [ "$ARTIX" != true ];then
     HOOKS=${HOOKS/base /}
     HOOKS=${HOOKS/ keymap/}
@@ -156,6 +156,5 @@ else
     done
 fi
 
-virtqemud &
-virtnetworkd &
-virsh net-autostart default
+#Enable network autostart for the default network manually as virsh cannot be utilised in chroot
+ln -s /etc/libvirt/qemu/networks/default.xml /etc/libvirt/qemu/networks/autostart

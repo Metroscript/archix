@@ -103,6 +103,7 @@ python-pysmbc
 qbittorrent
 qemu-full
 smartmontools
+snapper
 squashfs-tools
 steam
 strace

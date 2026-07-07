@@ -43,17 +43,6 @@ fi
 #Update to get repos
 pacman -Syu --noconfirm
 
-#Snapper Setup
-$INSTALL snapper
-mount -o subvolid=5 "$ROOT_PART" /mnt
-btrfs subvolume create /mnt/@.snapshots
-umount /mnt
-mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
-chmod 750 /.snapshots
-printf "UUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_UUID" >> /etc/fstab
-mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
-mv "$HOME"/archix/etc/conf.d/snapper /etc/conf.d
-
 #Set Language Locale (Needs work)
 sed -i "s/#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
 printf "LANG=en_US.UTF-8\nLC_COLLATE=\"C\"" > /etc/locale.conf
@@ -172,7 +161,17 @@ else
     mv "$HOME"/archix/etc/systemd/zram-generator.conf.d /etc/systemd
 fi
 
-mv "$HOME"/archix/etc/conf.d/pacman-contrib /etc/conf.d
+#Snapper snapshots subvolume setup
+mount -o subvolid=5 "$ROOT_PART" /mnt
+btrfs subvolume create /mnt/@.snapshots
+umount /mnt
+mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
+chmod 750 /.snapshots
+printf "# %s\nUUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_PART" "$ROOT_UUID" >> /etc/fstab
+mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
+
+#Move snapper and pacman-contrib config files to conf.d. This is done now to prevent errors when installing the related packages.
+mv "$HOME"/archix/etc/conf.d/* /etc/conf.d
 
 #Allows freshclam to work
 touch /var/log/clamav/freshclam.log

@@ -50,7 +50,7 @@ Before using archix, ensure that the drive you are planning to install Linux on 
 
 # Usage
 
-1. Install git on your arch ISO: `pacman -Sy git` (Wait a couple of minutes after booting before doing this to avoid key errors)
+1. Install git on your arch ISO: `pacman -Sy git`
 
 2. Clone the repository: `git clone https://github.com/Metroscript/archix.git`
 
