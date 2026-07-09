@@ -13,6 +13,13 @@ fi
 
 printf "REPO=%s\n" "$REPO" >> "$VAR_FILE"
 
+if [ -f /usr/share/libalpm/hooks/90-mkinitcpio-install.hook ];then
+    mv /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /usr/share/libalpm/hooks/90-mkinitcpio-install.hook.disabled
+fi
+if [ -f /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook ];then
+    mv /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook.disabled
+fi
+
 pacman-key --init
 pacman-key --populate
 pacman -Sy --noconfirm sbctl virt-what
@@ -138,11 +145,6 @@ while :;do
             ;;
     esac
 done
-
-SUBVOLS="@ @home @opt @root @srv @usr_local @var_cache @var_lib_libvirt_images @var_log @var_spool @var_tmp"
-SUBVOL_PATHS="/mnt /mnt/home /mnt/opt /mnt/root /mnt/srv /mnt/usr/local /mnt/var/cache /mnt/var/lib/libvirt/images/ /mnt/var/log /mnt/var/spool /mnt/var/tmp"
-
-printf "SUBVOLS=\"%s\"\nSUBVOL_PATHS=\"%s\"\n" "$SUBVOLS" "$SUBVOL_PATHS" >> "$VAR_FILE"
 
 while :;do
     printf "Enter username for standard user: "

@@ -145,7 +145,7 @@ fi
 SERVICES="NetworkManager firewalld chronyd cronie apparmor auditd libvirtd virtlogd$TLP"
 
 if [ "$ARTIX" != true ];then
-    SERVICES="bluetooth cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer plasmalogin $SERVICES"
+    SERVICES="bluetooth btrfs-scrub.timer cups clamav-daemon clamav-freshclam pkgfile-update.timer paccache.timer plasmalogin $SERVICES"
     for SERVICE in $SERVICES;do
         systemctl enable "$SERVICE"
     done

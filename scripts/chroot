@@ -162,12 +162,12 @@ else
 fi
 
 #Snapper snapshots subvolume setup
-mount -o subvolid=5 "$ROOT_PART" /mnt
-btrfs subvolume create /mnt/@.snapshots
-umount /mnt
-mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
-chmod 750 /.snapshots
-printf "# %s\nUUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_PART" "$ROOT_UUID" >> /etc/fstab
+#mount -o subvolid=5 "$ROOT_PART" /mnt
+#btrfs subvolume create /mnt/@.snapshots
+#umount /mnt
+#mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
+#chmod 750 /.snapshots
+#printf "# %s\nUUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_PART" "$ROOT_UUID" >> /etc/fstab
 mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
 
 #Move snapper and pacman-contrib config files to conf.d. This is done now to prevent errors when installing the related packages.
