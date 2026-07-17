@@ -37,6 +37,7 @@ if [ "$LUKS" = true ];then
     printf "%s" "$LUKS_PASSWORD" | cryptsetup luksOpen "$ROOT_PART" root -
     CRYPT_ROOT_PART="$ROOT_PART"
     ROOT_PART=/dev/mapper/root
+    unset LUKS_PASSWORD
 fi
 printf "ROOT_PART=%s\n" "$ROOT_PART" >> "$HOME"/archix/scripts/vars
 mkfs.btrfs --checksum sha256 "$ROOT_PART"
@@ -103,5 +104,15 @@ else
     UNIQUEPKGS="btrfsmaintenance systemd-ukify"
 fi
 
-$STRAP /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio btrfs-progs efibootmgr "$CPU"-ucode $UNIQUEPKGS
+$STRAP /mnt base base-devel $KERNELS $HEADERS $FIRMWARE mkinitcpio btrfs-progs efibootmgr "$CPU"-ucode $UNIQUEPKGS fish
 $GENFSTAB -U /mnt >> /mnt/etc/fstab
+
+# Create users and change passwords in chroot
+if [ -n "$ROOT_PASSWORD" ];then
+    "$DISTRO"-chroot /mnt bash -c "printf \"root:%s\" \"$ROOT_PASSWORD\" | chpasswd"
+    unset ROOT_PASSWORD
+fi
+
+"$DISTRO"-chroot /mnt bash -c "useradd -mG wheel -s /bin/fish \"$USERNAME\" ; printf \"%s:%s\" \"$USERNAME\" \"$PASSWORD\" | chpasswd"
+
+unset PASSWORD

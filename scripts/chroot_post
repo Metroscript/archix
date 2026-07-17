@@ -72,10 +72,8 @@ fi
 DEFBOOTORDER=$(efibootmgr | grep "BootOrder" | cut -d\  -f2)
 
 for i in $KERNELS;do
-    DISTRO=arch
     sed -i -e 's/default_image/#default_image/' -i -e 's/#default_uki/default_uki/' -i -e 's/#default_options/default_options/' /etc/mkinitcpio.d/"$i".preset
     if [ "$ARTIX" = true ];then # Replash boot splash
-        DISTRO=artix
         sed -i -e 's:default_options.*:default_options="--splash /usr/share/egummiboot/bootctl/splash-artix.bmp":' -i -e "s:default_uki.*:default_uki=\"/efi/EFI/Linux/${DISTRO}-${i}.efi\":" /etc/mkinitcpio.d/"$i".preset
     fi
     if [ "$FALLBACK" = true ];then
@@ -154,6 +152,7 @@ else
     for SERVICE in $SERVICES;do
         ln -s /etc/dinit.d/"$SERVICE" /etc/dinit.d/boot.d/
     done
+    bootctl --graceful random-seed
 fi
 
 #Enable network autostart for the default network manually as virsh cannot be utilised in chroot

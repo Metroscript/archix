@@ -50,8 +50,13 @@ if sbctl status | grep -i "setup mode" | cut -d\  -f3 | grep -qi "enabled";then
 fi
 
 if grep -qi "Artix" /etc/os-release;then
-    printf "ARTIX=true\n" >> "$VAR_FILE" 
+    DISTRO=artix
+    printf "ARTIX=true\n" >> "$VAR_FILE"
+else
+    DISTRO=arch
 fi
+
+printf "DISTRO=%s\n" >> "$DISTRO" "$VAR_FILE"
 
 CHASSIS=$(cat /sys/class/dmi/id/chassis_type)
 if [ "$CHASSIS" = 9 ] || [ "$CHASSIS" = 10 ];then
@@ -64,7 +69,7 @@ elif lscpu | grep -q "GenuineIntel";then
     printf "CPU=intel\n" >> "$VAR_FILE"
 fi
 
-TIMEZONE=$(curl -s https://ipapi.co/timezone)
+TIMEZONE=$(tzselect)
 COUNTRY=$(printf "%s" "$TIMEZONE" | cut -d/ -f1)
 printf "TIMEZONE=%s\nCOUNTRY=%s\n" "$TIMEZONE" "$COUNTRY" >> "$VAR_FILE"
 
@@ -127,7 +132,7 @@ while :;do
                 case "$LUKS_PASSWD_CONF" in
 
                     "$LUKS_PASSWORD")
-                        printf "LUKS=true\nLUKS_PASSWORD=\"%s\"\n" "$LUKS_PASSWORD" >> "$VAR_FILE"
+                        printf "LUKS=true\n" >> "$VAR_FILE"
                         break
                         ;;
                     *)
@@ -166,7 +171,7 @@ while :;do
                     case "$PASSWD_CONF" in
 
                         "$PASSWORD")
-                            printf "USERNAME=\"%s\"\nPASSWORD=\"%s\"\n" "$USERNAME" "$PASSWORD" >> "$VAR_FILE"
+                            printf "USERNAME=\"%s\"\n" "$USERNAME" >> "$VAR_FILE"
                             break
                             ;;
                         *)
@@ -205,7 +210,6 @@ while :;do
                 case "$ROOT_PASSWD_CONF" in
 
                 "$ROOT_PASSWORD")
-                    printf "ROOT_PASSWORD=\"%s\"\n" "$ROOT_PASSWORD" >> "$VAR_FILE"
                     break
                     ;;
                 *)

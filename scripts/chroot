@@ -97,15 +97,6 @@ hwclock --systohc
 #Hostname
 printf "%s\n" "$HN" > /etc/hostname
 
-#Root Password
-if [ -n "$ROOT_PASSWORD" ];then
-    printf "root:%s" "$ROOT_PASSWORD" | chpasswd
-fi
-
-#User
-useradd -mG wheel -s /bin/fish "$USERNAME"
-printf "%s:%s" "$USERNAME" "$PASSWORD" | chpasswd
-
 #Allow the wheel group to use sudo without password input
 if [ "$DOAS" = true ];then
     $INSTALL opendoas
@@ -145,7 +136,7 @@ sed -i 's/#firewall_backend = "nftables"/firewall_backend = "iptables"/' /etc/li
 gpasswd -a "$USERNAME" libvirt
 
 #Makepkg Optimisations
-sed -i -e "s/#MAKEFLAGS.*/MAKEFLAGS=\"-j\$(nproc)\"/" -i -e 's/(xz/(xz --threads=0/' -i -e 's/(zstd/(zstd --threads=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
+sed -i -e "s/#MAKEFLAGS.*/MAKEFLAGS=\"-j\$(nproc)\"/" -i -e 's/(xz/(xz -T=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
 if [ "$DOAS" = true ];then
      sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
 fi
@@ -161,13 +152,7 @@ else
     mv "$HOME"/archix/etc/systemd/zram-generator.conf.d /etc/systemd
 fi
 
-#Snapper snapshots subvolume setup
-#mount -o subvolid=5 "$ROOT_PART" /mnt
-#btrfs subvolume create /mnt/@.snapshots
-#umount /mnt
-#mount --mkdir -o defaults,noatime,subvol=/@.snapshots "$ROOT_PART" /.snapshots
-#chmod 750 /.snapshots
-#printf "# %s\nUUID=%s /.snapshots btrfs defaults,noatime,subvol=/@.snapshots 0 0\n" "$ROOT_PART" "$ROOT_UUID" >> /etc/fstab
+#Enable root snapper config
 mv "$HOME"/archix/etc/snapper/configs/root /etc/snapper/configs
 
 #Move snapper and pacman-contrib config files to conf.d. This is done now to prevent errors when installing the related packages.
