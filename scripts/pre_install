@@ -74,6 +74,31 @@ COUNTRY=$(printf "%s" "$TIMEZONE" | cut -d/ -f1)
 printf "TIMEZONE=%s\nCOUNTRY=%s\n" "$TIMEZONE" "$COUNTRY" >> "$VAR_FILE"
 
 DISKS=$(lsblk -no TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2" | "$3}')
+
+for DISK in $DISKS;do
+    if efibootmgr "$DISK" | grep -qi "Windows Boot Manager";then
+        while :;do
+            printf "Windows installation detected on %s! Remove it from available disks for Linux installation?\n[y/n]: " "$DISK"
+            read -r WINOVERWRITE
+            case "$WINOVERWRITE" in
+                y)
+                    DISKS=$(printf "%s" "$DISKS" | sed "s,$DISK,,")
+                    printf "Installing refind for dual-boot support...\n"
+                    REFIND=true
+                    sleep 5
+                    break
+                    ;;
+                n)
+                    break
+                    ;;
+                *)
+                    printf "Invalid input, try again.\n"
+                    ;;
+            esac
+        done
+    fi
+done
+
 while :;do
     printf "From the following, select the disk to install on:\n%s\nDisk name: " "$DISKS"
     read -r INSTALL_DISK
@@ -104,16 +129,6 @@ while :;do
             esac
         done;else
         printf "\"%s\" is not a valid installation disk!\n" "$INSTALL_DISK"
-    fi
-done
-
-WINCHECK_DISKS=$(printf "%s" "$DISKS" | sed "s,$INSTALL_DISK,,")
-for DISK in $WINCHECK_DISKS;do
-    if efibootmgr "$DISK" | grep -q "Windows Boot Manager";then
-        printf "Windows installation detected on %s! Installing refind for dual-boot support...\n" "$DISK"
-        REFIND=true
-        sleep 5
-        break
     fi
 done
 

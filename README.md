@@ -28,7 +28,7 @@ Before using archix, ensure that the drive you are planning to install Linux on 
 
 - Paru will be installed as an AUR helper
 
-- The UFW firewall is enabled and defaults to deny incoming and allow outgoing connections
+- Firewalld is enabled and defaults to deny incoming and allow outgoing connections
 
 - All available firmware packages in the Arch repositories are available for maximum compatability, especially for the optional fallback images.
 

@@ -45,12 +45,10 @@ MOUNT_OPTS="noatime,compress-force=zstd:1"
 
 #Get UUIDS
 sleep 10 #BTRFS takes longer to generate UUIDs, this prevents readings from being blank
+ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
 if [ "$LUKS" = true ];then
-    ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
     CRYPT_PART_UUID=$(cryptsetup luksUUID "$CRYPT_ROOT_PART")
     printf "CRYPT_PART_UUID=%s\n" "$CRYPT_PART_UUID" >> "$HOME"/archix/scripts/vars
-else
-    ROOT_UUID=$(lsblk -oUUID "$ROOT_PART" | sed '/UUID/d')
 fi
 printf "ROOT_UUID=%s\n" "$ROOT_UUID" >> "$HOME"/archix/scripts/vars
 
