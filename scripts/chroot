@@ -97,14 +97,8 @@ hwclock --systohc
 #Hostname
 printf "%s\n" "$HN" > /etc/hostname
 
-#Allow the wheel group to use sudo without password input
-if [ "$DOAS" = true ];then
-    $INSTALL opendoas
-    printf "permit nopass :wheel\n" > /etc/doas.conf
-    chown -c root:root /etc/doas.conf
-    chmod -c 0400 /etc/doas.conf;else
-    sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
-fi
+#Allow the wheel group to use sudo without password input for makepkg in the next step
+sed -i "s/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
 
 if ! getent group gamemode;then
     groupadd -r gamemode
@@ -137,9 +131,6 @@ gpasswd -a "$USERNAME" libvirt
 
 #Makepkg Optimisations
 sed -i -e "s/#MAKEFLAGS.*/MAKEFLAGS=\"-j\$(nproc)\"/" -i -e 's/(xz/(xz -T=0/' -i -e 's/-march=x86-64 -mtune=generic/-march=native/' -i -e 's/#RUSTFLAGS.*/RUSTFLAGS="-C opt-level=3 -C target-cpu=native"/' -i -e 's/(bzip2/(lbzip2/' -i -e 's/(gzip/(pigz/' /etc/makepkg.conf
-if [ "$DOAS" = true ];then
-     sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/doas),' /etc/makepkg.conf
-fi
 
 #Import sysctl settings
 mv "$HOME"/archix/etc/sysctl.d /etc/
@@ -164,7 +155,7 @@ chmod 600 /var/log/clamav/freshclam.log
 chown clamav /var/log/clamav/freshclam.log
 freshclam
 
-#Hardened /tmp
+#Harden /tmp as Artix doesn't automatically do so
 if [ "$ARTIX" = true ];then
     cp /usr/lib/dinit.d/dinit-user-spawn /usr/lib/dinit.d/tmpmount -t /etc/dinit.d
     cp /usr/lib/dinit/tmpmount /etc/dinit.d/scripts/

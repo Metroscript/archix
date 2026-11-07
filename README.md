@@ -24,7 +24,7 @@ Before using archix, ensure that the drive you are planning to install Linux on 
 
 - Virt-manager and qemu are installed
 
-- Optionally, doas can be used instead of sudo
+- Run0 will be configured for use instead of sudo when using Arch
 
 - Paru will be installed as an AUR helper
 

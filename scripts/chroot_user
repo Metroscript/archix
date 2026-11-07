@@ -52,8 +52,10 @@ aur_install "$PARU"
 mkdir "$HOME"/.config/paru/
 cp /etc/paru.conf .config/paru/
 sed -i -e 's/#Clean/Clean/' -i -e 's/#UpgradeMenu/UpgradeMenu/' -i -e 's/#News/News/' "$HOME"/.config/paru/paru.conf
-if [ "$DOAS" = true ];then
-    sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/doas,' "$HOME"/.config/paru/paru.conf
+if [ "$ARTIX" != true ];then
+    sed -i -e 's/#\[bin\]/\[bin\]/' -i -e 's,#Sudo = doas,Sudo = /bin/run0,' "$HOME"/.config/paru/paru.conf
+else
+    sed -i -e '/run0/d' -i -e '/SYSTEMD/d' "$HOME"/.config/fish/config.fish
 fi
 
 aur_install brave-bin

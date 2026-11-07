@@ -1,10 +1,13 @@
 #!/bin/bash
 . "$HOME"/archix/scripts/vars
 
-#password :wheel perms
-if [ "$DOAS" = true ];then
-    sed -i "s/nopass/persist/" /etc/doas.conf;else
-    sed -i -e "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/" -i -e "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
+#Remove temporary passwordless sudo permissions
+sed -i "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/"
+
+if [ "$ARTIX" != true ];then
+    sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/run0),' /etc/makepkg.conf
+else
+    sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
 fi
 
 rm /boot/initramfs* #Remove initramfs generated during pacstrap
@@ -23,10 +26,9 @@ HOOKS=$OLDHOOKS
 #Remove fsck as it's unused when booting a btrfs root partition
 HOOKS=${HOOKS/ fsck/}
 
-# Remove keymap and base hook since sd-vconsole does the same thing and the base recovery shell is unnecessary
+# Remove the base hook since the recovery shell it provides is unnecessary
 if [ "$ARTIX" != true ];then
     HOOKS=${HOOKS/base /}
-    HOOKS=${HOOKS/ keymap/}
 fi
 
 #Plymouth Hooks
@@ -51,12 +53,10 @@ fi
 #Write new hooks to mkinitcpio.conf
 sed -i "s/$OLDHOOKS/$HOOKS/" /etc/mkinitcpio.conf
 
-#Enable platform-specific iommu settings
+#Enable IOMMU for Intel processors
 
 SECURITY_CMDLINE=$(cat /etc/cmdline.d/security.conf)
 
-#if [ "$CPU" = "amd" ];then
-#    SECURITY_CMDLINE="amd_iommu=force_isolation $SECURITY_CMDLINE"
 if [ "$CPU" = "intel" ];then
     SECURITY_CMDLINE="intel_iommu=on $SECURITY_CMDLINE"
 fi
@@ -147,7 +147,7 @@ if [ "$ARTIX" != true ];then
     for SERVICE in $SERVICES;do
         systemctl enable "$SERVICE"
     done
-    bootctl --graceful random-seed
+    #bootctl --graceful random-seed
 else
     SERVICES="bluetoothd cupsd clamd freshclam sddm zram $SERVICES"
     for SERVICE in $SERVICES;do

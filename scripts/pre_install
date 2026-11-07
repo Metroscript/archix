@@ -271,25 +271,6 @@ while :;do
     fi
 done
 
-while :;do
-    printf "Install doas as a sudo replacement?\n[y/n]: "
-    read -r DOAS
-    case "$DOAS" in
-
-    y)
-        printf "DOAS=true\n" >> "$VAR_FILE"
-        sed -i "/stuff/a alias sudo doas" "$HOME"/archix/config/fish/config.fish
-        break
-        ;;
-    n)
-        break
-        ;;
-    *)
-        printf "Invalid input, try again.\n"
-        ;;
-    esac
-done
-
 until [ "$ADD_KERNELS" = n ];do
     while :;do
         printf "Select a Linux kernel to install: 1.Stock 2.LTS 3.Zen 4.Hardened 5.RT 6.RT-LTS\n[1,2,3,4,5,6]: "

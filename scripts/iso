@@ -57,11 +57,6 @@ SUBVOLS="@ @home @root @srv @.snapshots @cache @images @log @spool @tmp"
 
 SUBVOL_PATHS="/mnt /mnt/home /mnt/root /mnt/srv /mnt/.snapshots /mnt/var/cache /mnt/var/lib/libvirt/images/ /mnt/var/log /mnt/var/spool /mnt/var/tmp"
 
-if [ "$ARTIX" != true ];then
-    SUBVOLS="$SUBVOLS @machines @portables"
-    SUBVOL_PATHS="$SUBVOL_PATHS /mnt/var/lib/machines /mnt/var/lib/portables"
-fi
-
 mount -o "$MOUNT_OPTS" "$ROOT_PART" /mnt
 for i in $SUBVOLS;do
     btrfs subvolume create /mnt/"$i"
@@ -77,12 +72,8 @@ done
 
 mount --mkdir -o noatime,nodev,noexec,nosuid,fmask=0137,dmask=0027 "$ESP_PART" /mnt/efi
 
-#Because root is created when mounting the subvolume, it doesn't have proper permissions by default
+#Because the following paths were created as subvolumes, they don't have proper permissions by default
 chmod 750 /mnt/root /mnt/.snapshots
-
-if [ "$ARTIX" != true ];then
-    chmod 750 /mnt/var/lib/machines /mnt/var/lib/portables
-fi
 
 chmod 1777 /mnt/var/tmp
 
