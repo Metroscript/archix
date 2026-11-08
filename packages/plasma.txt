@@ -1,7 +1,6 @@
 ark
 bluedevil
 breeze5
-colord-kde
 cryfs
 dolphin
 dolphin-plugins

@@ -2,7 +2,7 @@
 . "$HOME"/archix/scripts/vars
 
 #Remove temporary passwordless sudo permissions
-sed -i "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/"
+sed -i "s/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/" /etc/sudoers
 
 if [ "$ARTIX" != true ];then
     sed -i 's,#PACMAN_AUTH=(),PACMAN_AUTH=(/bin/run0),' /etc/makepkg.conf
